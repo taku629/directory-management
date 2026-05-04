@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Local data
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.cache/
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Tauri build artifacts
+src-tauri/WixTools/
+src-tauri/Bundles/
