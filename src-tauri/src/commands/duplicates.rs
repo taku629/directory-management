@@ -1,11 +1,9 @@
 use tauri::State;
 
-use crate::duplicates::{self, DuplicateGroup};
-use crate::error::{AppError, AppResult};
+use crate::duplicates::{self, DuplicateGroup, SimilarGroup};
+use crate::error::AppResult;
 use crate::state::AppState;
 
-/// Find exact duplicates within an optional path prefix.
-/// `min_size` defaults to 4KB to skip noise.
 #[tauri::command]
 pub fn find_duplicates(
     state: State<'_, AppState>,
@@ -17,11 +15,13 @@ pub fn find_duplicates(
 
 #[tauri::command]
 pub fn find_similar_images(
-    _state: State<'_, AppState>,
-    _path: Option<String>,
-    _max_distance: Option<u32>,
-) -> AppResult<Vec<DuplicateGroup>> {
-    Err(AppError::NotImplemented(
-        "perceptual-hash clustering: 後で image_hasher 入れてやる",
-    ))
+    state: State<'_, AppState>,
+    path: Option<String>,
+    max_distance: Option<u32>,
+) -> AppResult<Vec<SimilarGroup>> {
+    duplicates::find_similar_images(
+        &state.db,
+        path.as_deref(),
+        max_distance.unwrap_or(5),
+    )
 }
