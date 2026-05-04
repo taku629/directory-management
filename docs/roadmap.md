@@ -23,14 +23,14 @@
 
 ### 表側
 - ✅ アプリシェル
-- ✅ ファイルブラウザ (grid / list)
-- ✅ インスペクタ (タグ/評価/色/メモ)
+- ✅ ファイルブラウザ (grid / list、grid は画像サムネ)
+- ✅ インスペクタ (タグ/評価/色/メモ + 画像/動画/音声プレビュー)
 - ✅ サイドバー (favorites / smart / tags)
 - ✅ 検索バー
 - ✅ 設定画面
-- ◻ 画像/動画/PDF プレビュー
-- ◻ キーボードショートカット (j/k, space, t, …)
-- ◻ 複数選択 + 一括操作
+- ✅ キーボードショートカット (j/k, 矢印, Enter, Esc)
+- ✅ 複数選択 (⌘/Ctrl/Shift クリック) + 一括削除
+- ◻ PDF プレビュー (pdfium 入れる)
 - ◻ ドラッグドロップでフォルダ移動
 - ◻ 初回オンボーディング
 
@@ -39,25 +39,30 @@
 ## Phase 2 — 自動化と掃除
 
 ### ルールエンジン
-- ◻ 条件評価器 (name regex / ext / size / age / tag / AI label)
-- ◻ アクション実行器 (move with template / rename / tag / color / script)
-- ◻ notify でフォルダ監視 → 評価器に流す
-- ◻ ドライランモード (実行前にプレビュー)
-- ◻ 即実行ボタン
-- ◻ 定期実行
+- ✅ 条件評価器 (NameMatches/ExtensionIn/MimeStartsWith/SizeBetween/ModifiedWithinDays/PathIsIn/HasTag)
+- ✅ アクション実行器 (MoveTo/RenameTo/AddTag/SetColor/SetRating/Notify) + テンプレート
+- ✅ notify-debouncer-mini でフォルダ監視 → ルール評価
+- ✅ Dry-run ボタン
+- ✅ 即実行ボタン
+- ◻ 定期実行 (cron 的な)
+- ◻ ルールを JSON じゃなく UI で組み立てる (フルビジュアル)
+- ◻ Run script アクション
 
 ### Undo
-- ◻ 操作ログから逆操作生成
-- ◻ 履歴 UI (直近 100 件)
+- ✅ move/rename/tag_add の逆操作実行
+- ✅ 履歴 UI (直近 20 件)
+- ◻ delete のゴミ箱対応 + undo
+- ◻ set_color/set_rating の前値保存
 
 ### 重複検出
-- ◻ SHA-256 ハッシュ計算 (バックグラウンド)
+- ✅ SHA-256 でグルーピング + 不要ファイル削除 UI
+- ◻ バックグラウンドジョブ化 (今は同期)
 - ◻ 知覚ハッシュ (image_hasher) で類似画像
-- ◻ グルーピング + 一括ゴミ箱送り UI
 
 ### ディスク使用量
-- ◻ 再帰サイズ集計
-- ◻ Treemap 描画
+- ✅ 再帰サイズ集計
+- ✅ Treemap 描画 (slice-and-dice)
+- ◻ Squarified treemap に置き換え
 - ◻ 「でかいファイル Top N」/「冷たいファイル」スマートフォルダ
 
 ---
