@@ -1,15 +1,18 @@
-//! Rule CRUD — Phase 2.
-//!
-//! Rules persist into the `rules` table; `run_rule_now` and live triggering
-//! via the watcher land in Phase 2 implementation.
+//! Rule CRUD + run-now.
+
+use std::path::Path;
 
 use rusqlite::params;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tauri::State;
+use walkdir::WalkDir;
 
 use crate::db::now_ts;
 use crate::error::{AppError, AppResult};
-use crate::rules::Rule;
+use crate::rules::{
+    engine::{self, Candidate},
+    PlannedOp, Rule,
+};
 use crate::state::AppState;
 
 #[derive(Debug, Deserialize)]
@@ -102,9 +105,64 @@ pub fn delete_rule(state: State<'_, AppState>, id: i64) -> AppResult<()> {
     Ok(())
 }
 
+#[derive(Debug, Serialize)]
+pub struct RuleRunReport {
+    pub matched: usize,
+    pub applied: usize,
+    pub plan: Vec<PlannedOp>,
+}
+
+/// Walk `watched_path` once, evaluate the rule on each entry.
+/// `dry_run = true` returns the plan without touching files.
 #[tauri::command]
-pub fn run_rule_now(_state: State<'_, AppState>, _id: i64) -> AppResult<()> {
-    Err(AppError::NotImplemented(
-        "rule execution lands in Phase 2 (rules engine)",
-    ))
+pub fn run_rule_now(
+    state: State<'_, AppState>,
+    id: i64,
+    dry_run: bool,
+) -> AppResult<RuleRunReport> {
+    let rule = engine::load_rule(&state.db, id)?;
+    if !Path::new(&rule.watched_path).exists() {
+        return Err(AppError::NotFound(rule.watched_path));
+    }
+
+    let mut matched = 0usize;
+    let mut applied = 0usize;
+    let mut plan: Vec<PlannedOp> = Vec::new();
+
+    for entry in WalkDir::new(&rule.watched_path).max_depth(8) {
+        let entry = match entry {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let cand = match Candidate::from_path(entry.path()) {
+            Ok(c) => c,
+            Err(e) => {
+                log::warn!("candidate {}: {e}", entry.path().display());
+                continue;
+            }
+        };
+        if !engine::matches(&state.db, &cand, &rule)? {
+            continue;
+        }
+        matched += 1;
+        if dry_run {
+            plan.extend(engine::plan(&cand, &rule));
+        } else {
+            match engine::execute(&state.db, &cand, &rule, &format!("rule:{}", rule.id)) {
+                Ok(ops) => {
+                    applied += ops.len();
+                    plan.extend(ops);
+                }
+                Err(e) => log::warn!("execute on {}: {e}", entry.path().display()),
+            }
+        }
+    }
+    if !dry_run {
+        engine::touch_last_run(&state.db, id)?;
+    }
+
+    Ok(RuleRunReport { matched, applied, plan })
 }

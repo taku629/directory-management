@@ -1,23 +1,10 @@
-//! Rules engine — Phase 2.
+//! Rules engine.
 //!
 //! A rule binds a watched directory to (conditions, actions). When a file
-//! lands in the directory and conditions match, the engine runs the actions
-//! sequentially, recording each side-effect into `operations` so it can be
-//! undone.
-//!
-//! ## Condition primitives (planned)
-//! - `name_matches(regex)`         | `extension_in([".pdf", ...])`
-//! - `mime_starts_with("image/")`  | `size_between(min, max)`
-//! - `created_within(duration)`    | `path_is_in(prefix)`
-//! - `has_tag(tag)`                | `ai_label_is(label, conf>=)`
-//!
-//! ## Action primitives (planned)
-//! - `move_to(path_template)`      | `rename_to(template)`
-//! - `add_tag(tag)`                | `set_color(label)`
-//! - `set_rating(n)`               | `run_script(path)`
-//! - `notify(message)`
-//!
-//! Templates support `{name}`, `{ext}`, `{date:Y/m/d}`, `{ai_category}` etc.
+//! lands in the directory and conditions match, actions run sequentially,
+//! recording each side-effect into `operations` so it can be undone.
+
+pub mod engine;
 
 use serde::{Deserialize, Serialize};
 
@@ -36,26 +23,39 @@ pub struct Rule {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value")]
 pub enum Condition {
+    /// Glob match against the file name (e.g. `IMG_*.jpg`)
     NameMatches(String),
+    /// Lowercase extensions, no dot.
     ExtensionIn(Vec<String>),
+    /// MIME prefix like `image/`.
     MimeStartsWith(String),
-    SizeBetween { min: Option<i64>, max: Option<i64> },
-    CreatedWithinDays(i64),
+    SizeBetween {
+        min: Option<i64>,
+        max: Option<i64>,
+    },
+    /// File modified within the last N days.
+    ModifiedWithinDays(i64),
+    /// Parent path starts with this prefix.
     PathIsIn(String),
     HasTag(i64),
-    AiLabelIs { label: String, min_confidence: f32 },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value")]
 pub enum Action {
+    /// Template path. Variables: `{name}`, `{ext}`, `{stem}`,
+    /// `{year}`, `{month}`, `{day}`.
     MoveTo(String),
     RenameTo(String),
     AddTag(i64),
     SetColor(String),
     SetRating(i32),
-    RunScript(String),
     Notify(String),
 }
 
-// Engine implementation lands in Phase 2.
+#[derive(Debug, Clone, Serialize)]
+pub struct PlannedOp {
+    pub file_path: String,
+    pub action: String,
+    pub detail: String,
+}

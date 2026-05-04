@@ -72,6 +72,10 @@ pub fn run() {
             commands::rules::update_rule,
             commands::rules::delete_rule,
             commands::rules::run_rule_now,
+            // ---- Phase 2: watcher ----
+            commands::watcher::start_watcher,
+            commands::watcher::stop_watcher,
+            commands::watcher::watcher_status,
             // ---- Phase 2: duplicates ----
             commands::duplicates::find_duplicates,
             commands::duplicates::find_similar_images,
