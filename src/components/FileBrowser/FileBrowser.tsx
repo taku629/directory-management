@@ -8,6 +8,7 @@ import {
   listDir,
   listFilesByTag,
   listSmartFolders,
+  moveFile,
   searchFiles,
 } from "../../lib/tauri";
 import { PRESETS } from "../../lib/presets";
@@ -239,6 +240,21 @@ export function FileBrowser() {
               selected={selectedPaths.has(f.path)}
               onClick={(e) => handleClick(f, e)}
               onDoubleClick={() => enterFolder(f)}
+              onDropFiles={async (paths) => {
+                for (const p of paths) {
+                  const name = p.split(/[\\/]/).pop()!;
+                  const dst = `${f.path}/${name}`;
+                  try {
+                    await moveFile(p, dst);
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }
+                if (view.kind === "browse") {
+                  const r = await listDir(view.path);
+                  setEntries(r.entries);
+                }
+              }}
             />
           ))}
         </div>
@@ -281,24 +297,52 @@ function Card({
   selected,
   onClick,
   onDoubleClick,
+  onDropFiles,
 }: {
   entry: FileEntry;
   selected: boolean;
   onClick: (e: React.MouseEvent) => void;
   onDoubleClick: () => void;
+  onDropFiles?: (paths: string[]) => void;
 }) {
   // Inline image thumb when small enough; otherwise emoji icon.
   const isImage =
     !entry.is_directory && IMAGE_EXTS.includes(entry.extension ?? "");
   const showThumb = isImage && entry.size < 8 * 1024 * 1024;
   const src = showThumb ? convertFileSrc(entry.path) : null;
+  const [dragHover, setDragHover] = useState(false);
 
   return (
     <div
       className={clsx("file-card", { selected })}
+      style={
+        dragHover
+          ? { outline: "2px solid var(--accent)", background: "var(--row-selected)" }
+          : undefined
+      }
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       title={entry.path}
+      draggable={!entry.is_directory}
+      onDragStart={(e) => {
+        e.dataTransfer.setData("application/sift-paths", entry.path);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      onDragOver={(e) => {
+        if (!entry.is_directory) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        setDragHover(true);
+      }}
+      onDragLeave={() => setDragHover(false)}
+      onDrop={(e) => {
+        setDragHover(false);
+        if (!entry.is_directory) return;
+        const data = e.dataTransfer.getData("application/sift-paths");
+        if (!data) return;
+        e.preventDefault();
+        onDropFiles?.(data.split("\n"));
+      }}
     >
       <div className="thumb">
         {src ? (
