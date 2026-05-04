@@ -9,8 +9,11 @@ import {
 } from "../../lib/tauri";
 import type { LicenseInfo, WatchedRoot } from "../../lib/types";
 import { open } from "@tauri-apps/plugin-dialog";
+import { getLocale, setLocale, useT, type Locale } from "../../lib/i18n";
 
 export function Settings() {
+  const t = useT();
+  const [, setLocaleState] = useState<Locale>(getLocale());
   const [license, setLicense] = useState<LicenseInfo | null>(null);
   const [roots, setRoots] = useState<WatchedRoot[]>([]);
   const [licenseKey, setLicenseKey] = useState("");
@@ -30,10 +33,25 @@ export function Settings() {
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <h2>Settings</h2>
+      <h2>{t("settings.title")}</h2>
 
       <section style={{ marginBottom: 24 }}>
-        <h3>Watched roots</h3>
+        <h3>{t("settings.locale")}</h3>
+        <select
+          value={getLocale()}
+          onChange={(e) => {
+            const l = e.target.value as Locale;
+            setLocale(l);
+            setLocaleState(l);
+          }}
+        >
+          <option value="ja">日本語</option>
+          <option value="en">English</option>
+        </select>
+      </section>
+
+      <section style={{ marginBottom: 24 }}>
+        <h3>{t("settings.watchedRoots")}</h3>
         <p style={{ color: "var(--fg-dim)", fontSize: 13 }}>
           Folders that Sift indexes for full-text search and tagging. Phase 2
           will keep them in sync via a live watcher.

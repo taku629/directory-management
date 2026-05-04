@@ -9,17 +9,29 @@ import { DuplicateFinder } from "./components/DuplicateFinder/DuplicateFinder";
 import { DiskUsage } from "./components/DiskUsage/DiskUsage";
 import { AIPanel } from "./components/AIPanel/AIPanel";
 import { Settings } from "./components/Settings/Settings";
+import { Onboarding } from "./components/Onboarding/Onboarding";
 import { useAppStore } from "./lib/store";
-import { listTags } from "./lib/tauri";
+import { getSetting, listTags, listWatchedRoots, setSetting } from "./lib/tauri";
 import { open } from "@tauri-apps/plugin-dialog";
+import { initLocale, useT } from "./lib/i18n";
 
 export default function App() {
   const view = useAppStore((s) => s.view);
   const setView = useAppStore((s) => s.setView);
   const setTags = useAppStore((s) => s.setTags);
   const [status, setStatus] = useState("ready");
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [ready, setReady] = useState(false);
+  const t = useT();
 
   useEffect(() => {
+    (async () => {
+      await initLocale();
+      const seen = await getSetting("onboarded");
+      const roots = await listWatchedRoots();
+      if (!seen && roots.length === 0) setShowOnboarding(true);
+      setReady(true);
+    })();
     listTags().then(setTags).catch((e) => setStatus(`tags: ${e}`));
   }, [setTags]);
 
@@ -30,15 +42,26 @@ export default function App() {
     }
   }
 
+  if (!ready) return null;
+
   return (
     <div className="app">
       <header className="topbar">
-        <span className="brand">Sift</span>
-        <button onClick={chooseFolder}>Open Folder…</button>
+        <span className="brand">{t("app.brand")}</span>
+        <button onClick={chooseFolder}>{t("topbar.openFolder")}</button>
         <SearchBar onStatus={setStatus} />
         <span className="spacer" />
         <button onClick={() => setView({ kind: "settings" })}>⚙</button>
       </header>
+
+      {showOnboarding && (
+        <Onboarding
+          onClose={async () => {
+            await setSetting("onboarded", "1");
+            setShowOnboarding(false);
+          }}
+        />
+      )}
 
       <Sidebar />
 
