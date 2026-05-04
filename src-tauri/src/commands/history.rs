@@ -103,6 +103,13 @@ pub fn undo_operation(state: State<'_, AppState>, id: i64) -> AppResult<()> {
                 params![fid, tid],
             )?;
         }
+        "delete" => {
+            let path = inv["path"]
+                .as_str()
+                .ok_or_else(|| AppError::Invalid("inverse.path".into()))?;
+            restore_from_trash(path)?;
+            conn.execute("UPDATE files SET deleted = 0 WHERE path = ?1", [path])?;
+        }
         other => {
             return Err(AppError::Invalid(format!("undo not supported for: {other}")));
         }
@@ -110,4 +117,33 @@ pub fn undo_operation(state: State<'_, AppState>, id: i64) -> AppResult<()> {
 
     conn.execute("UPDATE operations SET undone = 1 WHERE id = ?1", [id])?;
     Ok(())
+}
+
+/// Best-effort: on Linux/Windows we can read the OS trash, find the entry
+/// whose original path matches `path`, and restore it. macOS doesn't expose
+/// a programmatic API in the `trash` crate, so we surface a clear error and
+/// the user can drag it back from Finder.
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+fn restore_from_trash(path: &str) -> AppResult<()> {
+    use trash::os_limited::{list, restore_all};
+    let items = list().map_err(|e| AppError::Other(anyhow::anyhow!(e)))?;
+    let target_path = std::path::Path::new(path);
+    let mut to_restore = Vec::new();
+    for it in items {
+        if it.original_path() == target_path {
+            to_restore.push(it);
+        }
+    }
+    if to_restore.is_empty() {
+        return Err(AppError::NotFound(format!("trash entry for {path}")));
+    }
+    restore_all(to_restore).map_err(|e| AppError::Other(anyhow::anyhow!("{e:?}")))?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn restore_from_trash(_path: &str) -> AppResult<()> {
+    Err(AppError::Invalid(
+        "macOS では trash からの自動復元未対応。Finder のゴミ箱から戻して。".into(),
+    ))
 }

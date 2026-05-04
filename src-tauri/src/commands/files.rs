@@ -268,17 +268,25 @@ pub fn rename_file(
 
 #[tauri::command]
 pub fn delete_file(state: State<'_, AppState>, path: String) -> AppResult<()> {
-    // Soft-delete: move to OS trash via std::fs::remove_file is destructive,
-    // so we just remove the row and let Phase 2 add a real Trash integration.
-    let p = Path::new(&path);
-    if p.is_dir() {
-        std::fs::remove_dir_all(p)?;
-    } else {
-        std::fs::remove_file(p)?;
-    }
+    // Send to OS trash via the `trash` crate. If we ever want hard-delete
+    // we can add a separate command — defaulting to recoverable is safer.
+    trash::delete(&path).map_err(|e| AppError::Other(anyhow::anyhow!(e)))?;
     let conn = state.db.get()?;
     conn.execute("UPDATE files SET deleted = 1 WHERE path = ?1", [&path])?;
-    record_op(&conn, "delete", &serde_json::json!({"path": path}))?;
+
+    // Inverse hint for undo: where the file used to live. The actual restore
+    // walks the OS trash on supported platforms; on macOS we just point the
+    // user at Finder's Trash.
+    record_op(
+        &conn,
+        "delete",
+        &serde_json::json!({ "path": path, "deleted_at": now_ts() }),
+    )?;
+    conn.execute(
+        "UPDATE operations SET inverse_json = ?1
+         WHERE id = (SELECT id FROM operations ORDER BY id DESC LIMIT 1)",
+        [serde_json::json!({ "path": path }).to_string()],
+    )?;
     Ok(())
 }
 
