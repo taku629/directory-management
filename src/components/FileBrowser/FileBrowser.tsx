@@ -7,8 +7,10 @@ import {
   indexDirectory,
   listDir,
   listFilesByTag,
+  listSmartFolders,
   searchFiles,
 } from "../../lib/tauri";
+import { PRESETS } from "../../lib/presets";
 import type { FileEntry } from "../../lib/types";
 import { iconFor, formatSize } from "../../lib/format";
 import { useKeyboard } from "../../hooks/useKeyboard";
@@ -59,6 +61,24 @@ export function FileBrowser() {
           if (!cancelled) {
             setEntries(r.items);
             setPath(`search:"${view.text}" (${r.total} results)`);
+          }
+        } else if (view.kind === "preset") {
+          const preset = PRESETS[view.preset];
+          const r = await searchFiles(preset.query);
+          if (!cancelled) {
+            setEntries(r.items);
+            setPath(`${preset.label} (${r.total})`);
+          }
+        } else if (view.kind === "smart") {
+          const smarts = await listSmartFolders();
+          const sf = smarts.find((s) => s.id === view.smartFolderId);
+          if (sf) {
+            const q = JSON.parse(sf.query_json);
+            const r = await searchFiles(q);
+            if (!cancelled) {
+              setEntries(r.items);
+              setPath(`${sf.name} (${r.total})`);
+            }
           }
         }
       } catch (e) {

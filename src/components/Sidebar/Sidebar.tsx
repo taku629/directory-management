@@ -9,6 +9,8 @@ import {
 } from "../../lib/tauri";
 import type { Favorite, SmartFolder, Tag } from "../../lib/types";
 import { open } from "@tauri-apps/plugin-dialog";
+import { PRESETS } from "../../lib/presets";
+import type { PresetId } from "../../lib/store";
 
 export function Sidebar() {
   const view = useAppStore((s) => s.view);
@@ -74,6 +76,19 @@ export function Sidebar() {
           }}
         />
       ))}
+
+      <h3>Built-in</h3>
+      {(Object.entries(PRESETS) as [PresetId, (typeof PRESETS)[PresetId]][]).map(
+        ([id, p]) => (
+          <NavItem
+            key={id}
+            icon={p.icon}
+            label={p.label}
+            active={view.kind === "preset" && view.preset === id}
+            onClick={() => setView({ kind: "preset", preset: id })}
+          />
+        ),
+      )}
 
       <h3>Smart Folders</h3>
       {smarts.length === 0 && (

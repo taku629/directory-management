@@ -6,11 +6,20 @@ type View =
   | { kind: "tag"; tagId: number }
   | { kind: "smart"; smartFolderId: number }
   | { kind: "search"; text: string }
+  | { kind: "preset"; preset: PresetId }
   | { kind: "duplicates" }
   | { kind: "disk-usage" }
   | { kind: "rules" }
   | { kind: "ai" }
   | { kind: "settings" };
+
+export type PresetId =
+  | "biggest"
+  | "cold"
+  | "recent"
+  | "images"
+  | "videos"
+  | "documents";
 
 interface AppStore {
   view: View;

@@ -46,6 +46,7 @@ export default function App() {
         {view.kind === "browse" && <FileBrowser />}
         {view.kind === "tag" && <TagManager.View tagId={view.tagId} />}
         {view.kind === "search" && <FileBrowser />}
+        {view.kind === "preset" && <FileBrowser />}
         {view.kind === "smart" && <FileBrowser />}
         {view.kind === "duplicates" && <DuplicateFinder />}
         {view.kind === "disk-usage" && <DiskUsage />}
