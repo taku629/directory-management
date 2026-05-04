@@ -1,114 +1,91 @@
-# Sift — Architecture
+# 設計メモ
 
-## Tech choices
+個人プロジェクトの設計メモ。後で見返す用。
 
-### Why Tauri
+## なぜ Tauri にしたか
 
 | | Tauri | Electron |
 |-|-------|----------|
-| Install size | 5–15 MB | 100–200 MB |
-| RAM at idle | 30–80 MB | 200–500 MB |
-| File ops speed | Native Rust | Node.js |
-| Code signing & bundling | Built-in (`tauri build`) | Add-on (`electron-builder`) |
-| Updater | Built-in (`tauri-plugin-updater`) | Add-on |
-| Frontend stack | React + Vite (any web stack) | Same |
-| Maturity | 2.x stable | mature |
+| 配布サイズ | 5–15 MB | 100–200 MB |
+| メモリ | 30–80 MB | 200–500 MB |
+| ファイル操作 | Rust ネイティブ | Node.js |
+| 署名 / バンドル | `tauri build` 内蔵 | electron-builder 別途 |
+| アップデータ | プラグインあり | サードパーティ |
 
-For a paid productivity app, **install size and RAM matter** — they're the
-top complaints in App Store reviews of competitors. Rust also wins by an order
-of magnitude on the workload Sift is built for: scanning, hashing,
-thumbnailing tens of thousands of files.
+「軽い」が今回大事。10 万ファイル単位のスキャンを Node でやりたくない。
+Rust の練習にもなる。
 
-### Why SQLite + FTS5
+## なぜ SQLite + FTS5
 
-- Embedded, zero-config, single file
-- FTS5 is fast and built into rusqlite
-- WAL mode = concurrent reads while indexer writes
-- Ships with rusqlite via the `bundled` feature → no system SQLite needed
+- 組み込みでサーバいらない
+- FTS5 が rusqlite に同梱される
+- WAL モードでスキャン中もブラウズできる
 
-### Why React (not Svelte/Solid)
+## なぜ React (Svelte じゃなく)
 
-- Largest ecosystem (date pickers, tree views, virtualisation, etc.)
-- Easier to hire / find contributors
-- Tradeoff is bundle size, but it's all WebView so cost is trivial
+- 慣れてる
+- ライブラリが多い (将来 treemap / 仮想スクロール / DnD で困りたくない)
+- バンドルサイズの差は WebView 上ではあまり気にならない
 
-## Process model
+## プロセスモデル
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                     OS WebView                           │
-│  React UI ←→ @tauri-apps/api `invoke('command', args)`   │
-└────────────────────────┬─────────────────────────────────┘
-                         │  IPC  (typed JSON)
-┌────────────────────────▼─────────────────────────────────┐
-│  Tauri Rust process (one main process)                   │
-│   ├─ AppState (DB pool, watcher handle)                  │
-│   ├─ commands::*  (one file per feature area)            │
-│   ├─ fs::scanner / watcher / thumbnail                   │
-│   ├─ search::indexer                                     │
-│   ├─ rules / duplicates / ai / cloud / license           │
-│   └─ rusqlite + r2d2  →  SQLite DB                       │
-└──────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-                ~/.local/share/sift/sift.db   (or platform equivalent)
+┌──────────────────────────────────────────────────┐
+│              OS WebView                          │
+│  React UI ←→ invoke('command', args)             │
+└────────────────────┬─────────────────────────────┘
+                     │  IPC (typed JSON)
+┌────────────────────▼─────────────────────────────┐
+│  Tauri Rust process                              │
+│   ├─ AppState (DB pool, watcher)                 │
+│   ├─ commands::*                                 │
+│   ├─ fs::scanner / watcher / thumbnail           │
+│   ├─ search::indexer                             │
+│   └─ rusqlite + r2d2  →  SQLite                  │
+└──────────────────────────────────────────────────┘
+                     │
+                     ▼
+                <data_dir>/sift.db
 ```
 
-## Module boundaries
+## モジュール分け
 
-| Module | Responsibility | Phase |
-|--------|---------------|-------|
-| `commands::files`     | Browse, index, metadata, file ops | 1 |
-| `commands::tags`      | Tag CRUD + file<->tag linking | 1 |
-| `commands::search`    | Query execution | 1 |
-| `commands::settings`  | KV settings | 1 |
-| `commands::rules`     | Rule CRUD; engine in `rules::` | 2 |
-| `commands::duplicates`| Dedup queries; finders in `duplicates::` | 2 |
-| `commands::disk`      | Disk treemap | 2 |
-| `commands::history`   | Operation log + undo | 2 |
-| `commands::ai`        | AI tagging, classification, NL search | 3 |
-| `commands::cloud`     | Provider config + sync | 4 |
-| `commands::license`   | Activation + tier gating | 4 |
+| モジュール | 役割 | 状態 |
+|--|--|--|
+| `commands::files` | ブラウズ/インデックス/メタデータ/操作 | ✅ |
+| `commands::tags` | タグ CRUD | ✅ |
+| `commands::search` | 検索 | ✅ |
+| `commands::settings` | KV 設定 | ✅ |
+| `commands::rules` | ルール CRUD (実行は未実装) | 🚧 |
+| `commands::duplicates` | 重複検出 | ◻ |
+| `commands::disk` | ディスク使用量 | ◻ |
+| `commands::history` | 履歴/Undo | 🚧 |
+| `commands::ai` | AI 系 (Pro ゲート済) | ◻ |
+| `commands::cloud` | クラウド同期 | ◻ |
+| `commands::license` | ライセンス | 🚧 |
 
-Each `commands::X` module *only* coordinates IPC and DB; logic lives in the
-matching domain module (`X::`). This keeps commands thin and units testable.
+`commands::*` は IPC と DB のグルーだけ。ロジックは `<area>::` 側に置く方針。
+コマンドを薄く保つことで単体テストしやすくしたい。
 
-## Concurrency model
+## 並行性
 
-Tauri commands are async by default. For Phase 1 we use **synchronous**
-rusqlite calls inside short-lived commands (≤10ms typical). Long-running work
-gets spawned onto Tokio:
+Tauri コマンドは async がデフォだけど、Phase 1 は短時間 (≤10ms) で済むので
+同期 rusqlite で問題ない。長時間の処理 (スキャン, ハッシュ) は
+`tokio::task::spawn_blocking` に逃がして、進捗は Tauri イベントで返す予定。
 
-- Indexing a directory → `tokio::task::spawn_blocking` returns a job id.
-- Watcher debounces FS events → triggers reindex on a job queue.
-- Hashing for dedup → background pool, throttled to N=4 cores by default.
+## インデックスの流れ
 
-Progress is reported back to the UI via Tauri events
-(`window.emit("scan:progress", { done, total })`).
+1. UI が `index_directory(path)` 呼ぶ
+2. `walkdir` で再帰、トランザクションで `files` を upsert
+3. `files_fts` に同期
+4. レポート (件数) を返す
+5. (Phase 2) watcher 登録 → 差分 upsert + ルール評価
 
-## Data flow: indexing a folder
+## 機能を追加するときの手順
 
-1. UI calls `index_directory(path)`.
-2. Backend opens a transaction, walks the directory with `walkdir`.
-3. For each entry, upserts into `files` and refreshes `files_fts`.
-4. Returns a `ScanReport` (counts).
-5. Phase 2: a watcher is registered on the path; subsequent events trigger
-   incremental upserts and rule evaluation.
-
-## Tier gating
-
-Every privileged command calls `license::require_tier(state, Tier::Pro)`
-before doing real work. The free tier returns a typed `LockedFeature` error
-the UI renders as the "🔒 Upgrade" panel. This keeps the upgrade path
-discoverable from inside features (not buried behind a separate paywall).
-
-## Extending the app
-
-To add a new feature area:
-
-1. Create `src-tauri/src/<area>/mod.rs` with domain types & logic.
-2. Create `src-tauri/src/commands/<area>.rs` with `#[tauri::command]` fns.
-3. Register the commands in `lib.rs`'s `invoke_handler!`.
-4. Add a typed wrapper in `src/lib/tauri.ts`.
-5. Add a UI component under `src/components/<Area>/`.
-6. (Optional) wire up a sidebar entry in `Sidebar.tsx`.
+1. `src-tauri/src/<area>/mod.rs` でドメイン型/ロジック
+2. `src-tauri/src/commands/<area>.rs` で `#[tauri::command]`
+3. `lib.rs` の `invoke_handler!` に登録
+4. `src/lib/tauri.ts` に typed なラッパ
+5. `src/components/<Area>/` に UI
+6. (任意) `Sidebar.tsx` にナビ追加

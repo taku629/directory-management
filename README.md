@@ -1,81 +1,80 @@
-# Sift
+# sift
 
-> Local folder management with auto-organization, search, tagging, and AI.
-> Built as a desktop app for Mac & Windows.
+ローカルのファイル/フォルダをいい感じに整理したいので、ちまちま作っているデスクトップアプリ。
 
-Sift is a fast, lightweight desktop app that turns your local folders into a
-searchable, taggable, auto-organising library. It's designed to be the one app
-you open instead of Finder/Explorer when you want to actually *find* and
-*organise* things — not just browse them.
+> 個人プロジェクト。実装途中。動くけど荒い。
 
-## Status
+## 何これ
 
-Pre-alpha. Phase 1 (browse, tag, search, index) is implemented. Phases 2-4
-have wired-up stubs and a fully designed schema; see
-[docs/roadmap.md](docs/roadmap.md).
+Finder/Explorer は便利なんだけど、
 
-## Stack
+- ダウンロードフォルダがすぐ散らかる
+- 写真とかスクショが何万枚あって全然探せない
+- タグみたいな自分用メタデータを付けたい
+- AI で自動分類とか自動タグ付けできたら楽だなあ
 
-- **Tauri 2** (Rust backend, OS-native WebView frontend)
-- **React + TypeScript + Vite** (frontend)
-- **SQLite + FTS5** (metadata, tags, search)
-- **rusqlite, walkdir, notify, image** (Rust crates)
+…と前から思ってて、市販アプリ (Hazel + Eagle + DaisyDisk + Czkawka) を全部足したのが欲しいので、自分で作ってみることにした。
 
-Why Tauri/Rust? Distribution size ≈10MB, low memory, fast filesystem ops.
-See [docs/architecture.md](docs/architecture.md#why-tauri).
+将来もし他の人にも便利そうなら課金にするかも、ぐらいの温度感。
 
-## Quick start
+## スタック
+
+- Tauri 2 (Rust) + React + TypeScript + Vite
+- SQLite (FTS5) でメタデータ
+- 軽量 (10MB 弱) で動かしたいので Electron じゃなく Tauri
+
+選定理由のメモは [docs/architecture.md](docs/architecture.md) に。
+
+## いま動くもの
+
+- 指定したフォルダの一覧表示 (グリッド / リスト)
+- フォルダの再帰インデックス (SQLite に放り込む)
+- タグ付け (複数タグ + 色 + 階層)
+- 星評価 + カラーラベル + メモ
+- 全文検索 (ファイル名 + メモ、FTS5)
+- お気に入り、スマートフォルダ (保存検索)
+- ファイル操作 (move / rename / delete) と操作ログ
+
+## まだ動かないもの (TODO 多め)
+
+- ルールで自動整理
+- フォルダ監視 (notify)
+- 重複検出
+- ディスク使用量の可視化
+- AI タグ付け / OCR / 自然言語検索
+- クラウド同期
+
+進捗は [docs/roadmap.md](docs/roadmap.md)、メモは [NOTES.md](NOTES.md) に書いてる。
+
+## 動かし方
 
 ```bash
-# 1. Install Rust toolchain (https://rustup.rs) and Node 20+
-# 2. Install dependencies
+# Rust toolchain (rustup) と Node 20+ が前提
 npm install
-
-# 3. Run dev (opens the desktop window with hot-reload frontend)
 npm run tauri:dev
-
-# 4. Build a release binary (.dmg / .msi / .AppImage depending on host)
-npm run tauri:build
 ```
 
-First launch:
+初回は
 
-1. Click **Open Folder…** in the top bar to browse a directory.
-2. Click **Index this folder** to make it searchable.
-3. Select a file → assign tags / rating / colour / note in the right panel.
+1. 上の **Open Folder…** で適当なフォルダを選ぶ
+2. **Index this folder** でインデックス
+3. 右の inspector でタグや評価を付けて遊ぶ
 
-## Repository layout
+## ディレクトリ
 
 ```
-src/                  React frontend (TypeScript)
-  components/         UI components, one folder per feature
-  lib/                IPC wrapper, shared types, store, helpers
-  styles/             Global CSS
-src-tauri/            Tauri/Rust backend
-  src/
-    commands/         IPC handlers (one file per feature area)
-    db/               SQLite pool + schema
-    fs/               Scanner, watcher, thumbnail
-    search/           Query builder + FTS execution
-    rules/            Phase 2: rules engine
-    duplicates/       Phase 2: hash-based dedup
-    ai/               Phase 3: AI features
-    cloud/            Phase 4: cloud sync
-    license/          Phase 4: tier gating
-docs/                 Vision, architecture, roadmap, data model, monetisation
-.github/workflows/    CI
+src/                  React 側
+src-tauri/            Rust 側
+  src/commands/       Tauri IPC 入口
+  src/db/             SQLite 関連
+  src/fs/             scanner / watcher / thumbnail
+  src/search/         検索クエリ
+  src/{rules,duplicates,ai,cloud,license}/
+docs/                 設計メモ
+NOTES.md              開発メモ
 ```
 
-## Documentation
+## ライセンス
 
-- [Vision](docs/vision.md) — what we're building and why
-- [Architecture](docs/architecture.md) — how it's wired
-- [Roadmap](docs/roadmap.md) — Phase 1-4 task breakdown
-- [Data model](docs/data-model.md) — full SQLite schema reference
-- [UI design](docs/ui-design.md) — layout, interactions, keyboard shortcuts
-- [Monetization](docs/monetization.md) — free/pro/team tiers, pricing, distribution
-- [Features](docs/features.md) — full feature catalogue across all phases
-
-## License
-
-Proprietary. See [LICENSE](LICENSE).
+個人プロジェクトなのでまだ決めてない。とりあえず無断利用禁止で
+([LICENSE](LICENSE))、その辺は気が向いたら考える。

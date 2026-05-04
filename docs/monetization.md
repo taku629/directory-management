@@ -1,79 +1,51 @@
-# Sift — Monetisation
+# お金の話
 
-## Tiers
+個人プロジェクトなのでまだ全然決めてない。
+反応次第。
 
-| Tier | Price (target) | Includes |
-|------|---------------|----------|
-| **Free** | $0 | Browse, tag, search, smart folders, favourites, single watched root |
-| **Pro**  | $49 buyout *or* $5/mo | Everything in Free, plus rules, watcher, dedup, disk usage, undo, AI, OCR, cloud sync, multiple watched roots |
-| **Team** | $12 / user / mo | Pro + shared tag dictionaries, multi-workspace, SSO, priority support |
+## 売るとしたらこんな感じかも
 
-Strategy: free is **genuinely useful** (Eagle / Hazel / DaisyDisk demos are
-not — they nag). The upgrade prompt appears *in context* the first time you
-hit a Pro feature, so the value is concrete.
+| 階層 | だいたい | 中身 |
+|------|---------|------|
+| Free | 0 円 | ブラウズ・タグ・検索・基本機能 |
+| Pro | 5,000 円 買い切り or 月 500 円ぐらい | ルール / 重複検出 / AI / クラウド同期 |
+| Team | 月 1,500 円 / 人 ぐらい | Pro + 共有タグ + ワークスペース |
 
-### Why one-time buy + subscription
+価格は競合 (Hazel $42, Eagle $30, DaisyDisk $10, Adobe Bridge 無料) を見ながら
+適当に置いただけ。
 
-A buy-once option ($49) is essential for the desktop-app crowd that hates
-SaaS. It gets the current major version + 1 year of updates; year 2 onward
-needs renewal at 50% off ($25/yr) for continued updates.
+## なんで買い切りも残したいか
 
-A subscription ($5/mo, $50/yr) suits people who want continuous updates and
-cloud sync (which has real backend cost).
+買い切り派が一定いる。Hazel もずっと買い切り。サブスク疲れの時代に
+「永久ライセンス + 1 年アップデート」みたいな選択肢があると安心して買える。
 
-## Why these prices
+## クラウド側にコスト発生する機能
 
-| Competitor | Price | What you get |
-|-----------|-------|--------------|
-| Hazel | $42 buyout | Rules only, Mac only |
-| DaisyDisk | $10 buyout | Disk usage only, Mac only |
-| Eagle | $30 buyout | Asset manager, no automation/AI |
-| Czkawka | Free | Dedup CLI, no UX |
-| Forklift | $30/yr | File manager, no AI |
-| Adobe Bridge | bundled | Heavy, requires Adobe subscription |
+- AI (Claude API 課金)
+- クラウド同期 (S3 とか転送量)
 
-Sift bundles all of those + AI for $49. Comfortably under Adobe; on par with
-Eagle for the asset-manager crowd; cheaper than Hazel + DaisyDisk combined.
+ここは月額で乗せるのが妥当。
 
-## Distribution
+## 売り方
 
-- **Direct**: marketing site (Astro/Next), Stripe checkout, download .dmg/.msi
-- **Mac App Store**: later — sandboxing limits some FS features, so direct
-  distribution comes first
-- **Microsoft Store**: same calculus
-- **Setapp**: consider once we have feature parity and traction
+- 直販 (Stripe / Lemon Squeezy / Gumroad のどれか) でランディング作って .dmg / .msi 配布
+- App Store / Microsoft Store はサンドボックスでファイルアクセス制限が辛いので後回し
+- Setapp は機能揃ってきたら検討
 
-## Telemetry
+## マーケ
 
-**Opt-in only**, off by default. If on, we send:
+- ProductHunt は出す
+- HackerNews Show HN
+- X / Bluesky で Tauri 系コミュニティに投げる
+- GIF を頑張って作る (タグ付け + 検索のデモ)
 
-- App version, OS, locale
-- Anonymised feature usage counts (e.g. "rules:run" +1)
-- Crash reports
+## 撤退ライン
 
-We do **not** send filenames, paths, content, tags, or any user data. This is
-a contract on the website + visible in Settings.
+正直、売れる気はそこまでしてない。最低限「自分が毎日使うアプリができたらそれで OK」
+ぐらいの気持ちでやる。売れたらラッキー。
 
-## Marketing positioning
+具体的目標 (希望):
 
-Headline: **"Finally, a folder you can actually find things in."**
-
-Three landing-page sections:
-1. **Browse like Eagle, organise like Hazel, search like Spotlight on
-   steroids.** GIF showing tagging + search.
-2. **AI that doesn't suck.** GIF: drag in 500 photos, watch them get tagged
-   and grouped.
-3. **Yours forever.** Local-first, your files never leave your machine
-   without consent.
-
-## First 90 days post-launch
-
-| Week | Goal |
-|------|------|
-| 1-2  | ProductHunt + HN launch, free tier only, gather signal |
-| 3-4  | Open Pro signups; price = $39 launch discount |
-| 5-8  | Iterate based on feedback; ship dedup + disk usage |
-| 9-12 | AI tier rollout to existing Pro users; evaluate annual plan uptake |
-
-Success metric for going full-time: **$3k MRR by day 90** (~600 Pro users at
-$5/mo, or 60 buyouts at $49). Stretch: **$10k MRR by day 180**.
+- 6 ヶ月後に Pro 100 ユーザーいたら本気出す
+- 1 年で 500 ユーザー / 月 5 万ぐらい売れたら継続
+- それ以下なら趣味として続ける (どっちにしろ自分は使う)
