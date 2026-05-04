@@ -12,11 +12,14 @@ import type {
   LicenseInfo,
   OperationRow,
   Rule,
+  RuleInput,
+  RuleRunReport,
   SearchQuery,
   SearchResult,
   SmartFolder,
   Tag,
   WatchedRoot,
+  WatcherStatus,
 } from "./types";
 
 // ---- Phase 1: files ----
@@ -101,10 +104,22 @@ export const setSetting = (key: string, value: string) =>
 
 // ---- Phase 2: rules ----
 export const listRules = () => invoke<Rule[]>("list_rules");
+export const createRule = (rule: RuleInput) =>
+  invoke<number>("create_rule", { rule });
+export const updateRule = (id: number, rule: RuleInput) =>
+  invoke<void>("update_rule", { id, rule });
+export const deleteRule = (id: number) => invoke<void>("delete_rule", { id });
+export const runRuleNow = (id: number, dryRun: boolean) =>
+  invoke<RuleRunReport>("run_rule_now", { id, dryRun });
+export const startWatcher = () => invoke<WatcherStatus>("start_watcher");
+export const stopWatcher = () => invoke<void>("stop_watcher");
+export const watcherStatus = () => invoke<WatcherStatus>("watcher_status");
 
 // ---- Phase 2: history ----
 export const listOperations = (limit = 100) =>
   invoke<OperationRow[]>("list_operations", { limit });
+export const undoOperation = (id: number) =>
+  invoke<void>("undo_operation", { id });
 
 // ---- Phase 4: license ----
 export const getLicense = () => invoke<LicenseInfo>("get_license");

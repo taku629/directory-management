@@ -81,9 +81,36 @@ export interface OperationRow {
   id: number;
   op_type: string;
   payload_json: string;
+  inverse_json: string | null;
   triggered_by: string;
   created_at: number;
   undone: boolean;
+}
+
+export interface RuleInput {
+  name: string;
+  enabled: boolean;
+  watched_path: string;
+  conditions_json: string;
+  actions_json: string;
+  priority: number;
+}
+
+export interface PlannedOp {
+  file_path: string;
+  action: string;
+  detail: string;
+}
+
+export interface RuleRunReport {
+  matched: number;
+  applied: number;
+  plan: PlannedOp[];
+}
+
+export interface WatcherStatus {
+  running: boolean;
+  roots: string[];
 }
 
 export interface LicenseInfo {
