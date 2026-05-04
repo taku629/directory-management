@@ -1,23 +1,15 @@
-//! AI features — Phase 3.
+//! AI features (Phase 3, Pro tier).
 //!
-//! ## Backends
-//! - Cloud: Claude API (Vision for images; chat for classification & NL search)
-//! - Local: optional CLIP / Llava / Tesseract for users who prefer offline
-//!
-//! ## Surface
-//! - `ai_tag_file` — image labels
-//! - `ai_classify_file` — into a small set of buckets (config or learned)
-//! - `ai_summarize` — short summary for documents
-//! - `ai_search` — natural language → SearchQuery
-//! - `ocr_file` — extract text from images / PDFs
-//!
-//! ## Storage
-//! Tags written to `ai_tags` (with `model`, `confidence`).
-//! Embeddings to `ai_embeddings`. OCR text to `ocr_text` and indexed via FTS.
+//! Backed by the Claude API. The API key is stored per-machine in the
+//! `settings` table under `claude_api_key`. Without one, every AI command
+//! returns an `Invalid("missing claude_api_key")` error so the UI can
+//! prompt to add one.
 
-use serde::Serialize;
+pub mod claude;
 
-#[derive(Debug, Serialize)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiTag {
     pub label: String,
     pub confidence: f32,
@@ -26,6 +18,8 @@ pub struct AiTag {
 #[derive(Debug, Serialize)]
 pub struct AiSearchHit {
     pub file_id: i64,
+    pub path: String,
+    pub name: String,
     pub score: f32,
     pub reason: String,
 }

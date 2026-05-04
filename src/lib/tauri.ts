@@ -121,6 +121,29 @@ export const listOperations = (limit = 100) =>
 export const undoOperation = (id: number) =>
   invoke<void>("undo_operation", { id });
 
+// ---- Phase 3: AI ----
+export interface AiTag {
+  label: string;
+  confidence: number;
+}
+export interface AiSearchHit {
+  file_id: number;
+  path: string;
+  name: string;
+  score: number;
+  reason: string;
+}
+export const aiTagFile = (fileId: number) =>
+  invoke<AiTag[]>("ai_tag_file", { fileId });
+export const aiClassifyFile = (fileId: number, categories: string[]) =>
+  invoke<string>("ai_classify_file", { fileId, categories });
+export const aiSummarize = (fileId: number) =>
+  invoke<string>("ai_summarize", { fileId });
+export const aiSearch = (query: string) =>
+  invoke<AiSearchHit[]>("ai_search", { query });
+export const ocrFile = (fileId: number) =>
+  invoke<string>("ocr_file", { fileId });
+
 // ---- Phase 4: license ----
 export const getLicense = () => invoke<LicenseInfo>("get_license");
 export const activateLicense = (licenseKey: string) =>

@@ -2,9 +2,12 @@ import { useEffect, useState } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useAppStore } from "../../lib/store";
 import {
+  aiSummarize,
+  aiTagFile,
   createTag,
   getFileTags,
   listTags,
+  ocrFile,
   openInExplorer,
   tagFile,
   untagFile,
@@ -226,6 +229,108 @@ export function Preview() {
         onChange={(e) => setNote(e.target.value)}
         onBlur={() => saveMetadata({ note })}
       />
+
+      <AiActions selected={selected} kind={kind} onTagsChanged={async () => {
+        if (selected.id) setFileTags(await getFileTags(selected.id));
+      }} />
     </div>
+  );
+}
+
+function AiActions({
+  selected,
+  kind,
+  onTagsChanged,
+}: {
+  selected: FileEntry;
+  kind: "image" | "video" | "audio" | "text" | "none";
+  onTagsChanged: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [result, setResult] = useState<string | null>(null);
+
+  if (!selected.id) {
+    return (
+      <>
+        <h4>AI</h4>
+        <p style={{ fontSize: 11, color: "var(--fg-dim)" }}>
+          このフォルダをインデックスしてから AI ボタンが使える。
+        </p>
+      </>
+    );
+  }
+
+  async function run(label: string, fn: () => Promise<unknown>) {
+    setBusy(label);
+    setResult(null);
+    try {
+      const r = await fn();
+      setResult(typeof r === "string" ? r : JSON.stringify(r, null, 2));
+      onTagsChanged();
+    } catch (e) {
+      setResult(`Error: ${e}`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <>
+      <h4>AI</h4>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+        {kind === "image" && (
+          <>
+            <button
+              onClick={() =>
+                selected.id != null && run("tag", () => aiTagFile(selected.id!))
+              }
+              disabled={busy !== null}
+            >
+              {busy === "tag" ? "…" : "Tag"}
+            </button>
+            <button
+              onClick={() =>
+                selected.id != null && run("ocr", () => ocrFile(selected.id!))
+              }
+              disabled={busy !== null}
+            >
+              {busy === "ocr" ? "…" : "OCR"}
+            </button>
+          </>
+        )}
+        {kind === "text" && (
+          <button
+            onClick={() =>
+              selected.id != null &&
+              run("sum", () => aiSummarize(selected.id!))
+            }
+            disabled={busy !== null}
+          >
+            {busy === "sum" ? "…" : "Summarize"}
+          </button>
+        )}
+      </div>
+      {kind === "none" && (
+        <p style={{ fontSize: 11, color: "var(--fg-dim)" }}>
+          画像/テキスト系で AI 機能が使える。
+        </p>
+      )}
+      {result && (
+        <pre
+          style={{
+            marginTop: 8,
+            fontSize: 11,
+            background: "var(--bg-3)",
+            padding: 8,
+            borderRadius: 4,
+            whiteSpace: "pre-wrap",
+            maxHeight: 200,
+            overflow: "auto",
+          }}
+        >
+          {result}
+        </pre>
+      )}
+    </>
   );
 }
