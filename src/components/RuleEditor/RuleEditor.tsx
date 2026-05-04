@@ -5,6 +5,7 @@ import {
   deleteRule,
   listOperations,
   listRules,
+  listTags,
   runRuleNow,
   startWatcher,
   stopWatcher,
@@ -17,18 +18,15 @@ import type {
   PlannedOp,
   Rule,
   RuleInput,
+  Tag,
   WatcherStatus,
 } from "../../lib/types";
-
-const SAMPLE_CONDITIONS = `[
-  { "type": "ExtensionIn", "value": ["pdf"] },
-  { "type": "SizeBetween", "value": { "min": 1000 } }
-]`;
-
-const SAMPLE_ACTIONS = `[
-  { "type": "MoveTo", "value": "/Users/me/Documents/{year}/{month}" },
-  { "type": "Notify", "value": "PDF moved" }
-]`;
+import {
+  ActionEditor,
+  ConditionEditor,
+  type Action,
+  type Condition,
+} from "./RuleFields";
 
 export function RuleEditor() {
   const [rules, setRules] = useState<Rule[]>([]);
@@ -316,14 +314,20 @@ function RuleForm({
   const [enabled, setEnabled] = useState(existing?.enabled ?? true);
   const [watchedPath, setWatchedPath] = useState(existing?.watched_path ?? "");
   const [priority, setPriority] = useState(existing?.priority ?? 0);
-  const [conditions, setConditions] = useState(
-    existing
-      ? JSON.stringify(existing.conditions, null, 2)
-      : SAMPLE_CONDITIONS,
+  const [conditions, setConditions] = useState<Condition[]>(
+    (existing?.conditions as Condition[] | undefined) ?? [
+      { type: "ExtensionIn", value: ["pdf"] },
+    ],
   );
-  const [actions, setActions] = useState(
-    existing ? JSON.stringify(existing.actions, null, 2) : SAMPLE_ACTIONS,
+  const [actions, setActions] = useState<Action[]>(
+    (existing?.actions as Action[] | undefined) ?? [
+      { type: "Notify", value: "matched!" },
+    ],
   );
+  const [tags, setTags] = useState<Tag[]>([]);
+  useEffect(() => {
+    listTags().then(setTags).catch(console.error);
+  }, []);
 
   async function pickPath() {
     const picked = await open({ directory: true });
@@ -331,19 +335,12 @@ function RuleForm({
   }
 
   async function save() {
-    try {
-      JSON.parse(conditions);
-      JSON.parse(actions);
-    } catch (e) {
-      alert(`JSON 不正: ${e}`);
-      return;
-    }
     const input: RuleInput = {
       name,
       enabled,
       watched_path: watchedPath,
-      conditions_json: conditions,
-      actions_json: actions,
+      conditions_json: JSON.stringify(conditions),
+      actions_json: JSON.stringify(actions),
       priority,
     };
     try {
@@ -373,8 +370,8 @@ function RuleForm({
           background: "var(--bg)",
           padding: 20,
           borderRadius: 12,
-          width: 640,
-          maxHeight: "80vh",
+          width: 720,
+          maxHeight: "85vh",
           overflow: "auto",
           border: "1px solid var(--border)",
         }}
@@ -389,6 +386,7 @@ function RuleForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={{ width: "100%" }}
+            placeholder="e.g. Sort downloaded PDFs"
           />
         </div>
         <div style={{ marginBottom: 8 }}>
@@ -423,57 +421,45 @@ function RuleForm({
             />
           </label>
         </div>
-        <div style={{ marginBottom: 8 }}>
-          <label style={{ fontSize: 11, color: "var(--fg-dim)" }}>
-            Conditions (JSON, AND)
-          </label>
-          <textarea
-            value={conditions}
-            onChange={(e) => setConditions(e.target.value)}
-            rows={6}
-            style={{
-              width: "100%",
-              fontFamily: "monospace",
-              fontSize: 12,
-            }}
-          />
-        </div>
-        <div style={{ marginBottom: 8 }}>
-          <label style={{ fontSize: 11, color: "var(--fg-dim)" }}>
-            Actions (JSON, in order)
-          </label>
-          <textarea
-            value={actions}
-            onChange={(e) => setActions(e.target.value)}
-            rows={6}
-            style={{
-              width: "100%",
-              fontFamily: "monospace",
-              fontSize: 12,
-            }}
-          />
-        </div>
-        <details style={{ fontSize: 11, color: "var(--fg-dim)" }}>
-          <summary>使える型</summary>
-          <pre style={{ fontSize: 10 }}>{`Conditions:
-  NameMatches: glob string ("*.pdf")
-  ExtensionIn: ["pdf","docx"]
-  MimeStartsWith: "image/"
-  SizeBetween: { "min": 1000, "max": 999999 }
-  ModifiedWithinDays: 7
-  PathIsIn: "/Users/me/Downloads"
-  HasTag: 3   // tag id
 
-Actions:
-  MoveTo: "/Users/me/Documents/{year}/{month}"
-  RenameTo: "{stem}_renamed.{ext}"
-  AddTag: 3
-  SetColor: "#ff6b6b"
-  SetRating: 5
-  Notify: "message"
+        <h4
+          style={{
+            fontSize: 11,
+            color: "var(--fg-dim)",
+            textTransform: "uppercase",
+            margin: "16px 0 4px",
+          }}
+        >
+          Conditions (AND)
+        </h4>
+        <ConditionEditor
+          conditions={conditions}
+          onChange={setConditions}
+          tags={tags}
+        />
 
-Template tokens: {name} {stem} {ext} {year} {month} {day}`}</pre>
-        </details>
+        <h4
+          style={{
+            fontSize: 11,
+            color: "var(--fg-dim)",
+            textTransform: "uppercase",
+            margin: "16px 0 4px",
+          }}
+        >
+          Actions (in order)
+        </h4>
+        <ActionEditor actions={actions} onChange={setActions} tags={tags} />
+
+        <p
+          style={{
+            fontSize: 11,
+            color: "var(--fg-dim)",
+            marginTop: 12,
+          }}
+        >
+          Template tokens: <code>{"{name} {stem} {ext} {year} {month} {day}"}</code>
+        </p>
+
         <div
           style={{
             marginTop: 16,
