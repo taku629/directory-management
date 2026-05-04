@@ -1,17 +1,159 @@
-//! Duplicate & near-duplicate detection — Phase 2.
+//! Duplicate file detection.
 //!
-//! ## Strategy
-//! - **Exact duplicates**: hash files in size buckets with SHA-256, group by
-//!   hash. Background job populates `files.hash_sha256`.
-//! - **Similar images**: 64-bit perceptual hash via `image_hasher`, then
-//!   Hamming-distance clustering. Stored in `files.hash_phash`.
-//! - **Similar documents** (Phase 3): MinHash over shingled text.
+//! Strategy: group by `size` first (cheap), then SHA-256 only the buckets
+//! with ≥ 2 files. Hashes are persisted to `files.hash_sha256` so repeat
+//! scans skip already-known files.
 
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
+
+use rusqlite::params;
 use serde::Serialize;
+use sha2::{Digest, Sha256};
+
+use crate::db::DbPool;
+use crate::error::AppResult;
 
 #[derive(Debug, Serialize)]
 pub struct DuplicateGroup {
-    pub key: String,
+    pub hash: String,
     pub size: i64,
-    pub file_ids: Vec<i64>,
+    pub files: Vec<DuplicateFile>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DuplicateFile {
+    pub id: i64,
+    pub path: String,
+    pub name: String,
+    pub modified_at: i64,
+}
+
+/// Stream-hash a file in 64KB chunks. Avoids loading huge files into memory.
+pub fn hash_file(path: &Path) -> AppResult<String> {
+    let mut f = File::open(path)?;
+    let mut hasher = Sha256::new();
+    let mut buf = [0u8; 64 * 1024];
+    loop {
+        let n = f.read(&mut buf)?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buf[..n]);
+    }
+    Ok(hex::encode(hasher.finalize()))
+}
+
+/// Find exact duplicates inside an optional path scope.
+/// Persists computed hashes back into the `files` table.
+pub fn find_exact(
+    pool: &DbPool,
+    scope: Option<&str>,
+    min_size: i64,
+) -> AppResult<Vec<DuplicateGroup>> {
+    let conn = pool.get()?;
+
+    // 1. find size buckets with ≥ 2 candidate files
+    let (size_sql, size_params): (&str, Vec<rusqlite::types::Value>) = match scope {
+        Some(prefix) => (
+            "SELECT size FROM files
+             WHERE deleted = 0 AND is_directory = 0 AND size >= ?1
+               AND (parent_path = ?2 OR parent_path LIKE ?2 || '%')
+             GROUP BY size HAVING COUNT(*) > 1",
+            vec![min_size.into(), prefix.to_string().into()],
+        ),
+        None => (
+            "SELECT size FROM files
+             WHERE deleted = 0 AND is_directory = 0 AND size >= ?1
+             GROUP BY size HAVING COUNT(*) > 1",
+            vec![min_size.into()],
+        ),
+    };
+
+    let candidate_sizes: Vec<i64> = {
+        let mut stmt = conn.prepare(size_sql)?;
+        let rows: Vec<i64> = stmt
+            .query_map(rusqlite::params_from_iter(size_params.iter()), |r| r.get(0))?
+            .collect::<Result<_, _>>()?;
+        rows
+    };
+
+    // 2. for each bucket, ensure each file has a hash
+    for size in &candidate_sizes {
+        let mut stmt = conn.prepare(
+            "SELECT id, path, hash_sha256 FROM files
+             WHERE size = ?1 AND deleted = 0 AND is_directory = 0",
+        )?;
+        let rows: Vec<(i64, String, Option<String>)> = stmt
+            .query_map([size], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+            .collect::<Result<_, _>>()?;
+
+        for (id, path, existing) in rows {
+            if existing.is_some() {
+                continue;
+            }
+            match hash_file(Path::new(&path)) {
+                Ok(h) => {
+                    conn.execute(
+                        "UPDATE files SET hash_sha256 = ?1 WHERE id = ?2",
+                        params![h, id],
+                    )?;
+                }
+                Err(e) => log::warn!("hash {path}: {e}"),
+            }
+        }
+    }
+
+    // 3. group by hash
+    let group_sql = match scope {
+        Some(_) => {
+            "SELECT hash_sha256, MIN(size)
+             FROM files
+             WHERE hash_sha256 IS NOT NULL AND deleted = 0 AND size >= ?1
+               AND (parent_path = ?2 OR parent_path LIKE ?2 || '%')
+             GROUP BY hash_sha256 HAVING COUNT(*) > 1
+             ORDER BY MIN(size) DESC"
+        }
+        None => {
+            "SELECT hash_sha256, MIN(size)
+             FROM files
+             WHERE hash_sha256 IS NOT NULL AND deleted = 0 AND size >= ?1
+             GROUP BY hash_sha256 HAVING COUNT(*) > 1
+             ORDER BY MIN(size) DESC"
+        }
+    };
+    let group_params: Vec<rusqlite::types::Value> = match scope {
+        Some(p) => vec![min_size.into(), p.to_string().into()],
+        None => vec![min_size.into()],
+    };
+
+    let mut stmt = conn.prepare(group_sql)?;
+    let groups: Vec<(String, i64)> = stmt
+        .query_map(rusqlite::params_from_iter(group_params.iter()), |r| {
+            Ok((r.get(0)?, r.get(1)?))
+        })?
+        .collect::<Result<_, _>>()?;
+
+    let mut out = Vec::with_capacity(groups.len());
+    for (hash, size) in groups {
+        let mut stmt = conn.prepare(
+            "SELECT id, path, name, modified_at FROM files
+             WHERE hash_sha256 = ?1 AND deleted = 0
+             ORDER BY modified_at",
+        )?;
+        let files = stmt
+            .query_map([&hash], |r| {
+                Ok(DuplicateFile {
+                    id: r.get(0)?,
+                    path: r.get(1)?,
+                    name: r.get(2)?,
+                    modified_at: r.get(3)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        out.push(DuplicateGroup { hash, size, files });
+    }
+
+    Ok(out)
 }
