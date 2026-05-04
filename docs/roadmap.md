@@ -25,14 +25,15 @@
 - ✅ アプリシェル
 - ✅ ファイルブラウザ (grid / list、grid は画像サムネ)
 - ✅ インスペクタ (タグ/評価/色/メモ + 画像/動画/音声プレビュー)
-- ✅ サイドバー (favorites / smart / tags)
+- ✅ サイドバー (favorites / smart / tags + ビルトインプリセット)
 - ✅ 検索バー
-- ✅ 設定画面
+- ✅ 設定画面 (言語切替も)
 - ✅ キーボードショートカット (j/k, 矢印, Enter, Esc)
 - ✅ 複数選択 (⌘/Ctrl/Shift クリック) + 一括削除
+- ✅ ドラッグドロップでフォルダ移動
+- ✅ 初回オンボーディング (4 step ウィザード)
+- ✅ i18n (JA/EN)
 - ◻ PDF プレビュー (pdfium 入れる)
-- ◻ ドラッグドロップでフォルダ移動
-- ◻ 初回オンボーディング
 
 ---
 
@@ -44,20 +45,22 @@
 - ✅ notify-debouncer-mini でフォルダ監視 → ルール評価
 - ✅ Dry-run ボタン
 - ✅ 即実行ボタン
+- ✅ 構造化フォームで条件/アクション編集 (JSON 直書きは廃止)
 - ◻ 定期実行 (cron 的な)
-- ◻ ルールを JSON じゃなく UI で組み立てる (フルビジュアル)
 - ◻ Run script アクション
+- ◻ AiLabelIs 条件 (Phase 3 と連携)
 
 ### Undo
 - ✅ move/rename/tag_add の逆操作実行
 - ✅ 履歴 UI (直近 20 件)
-- ◻ delete のゴミ箱対応 + undo
+- ✅ delete のゴミ箱対応 (trash crate) + Linux/Windows での自動復元
+- ◻ macOS での trash 自動復元 (API 未対応)
 - ◻ set_color/set_rating の前値保存
 
 ### 重複検出
 - ✅ SHA-256 でグルーピング + 不要ファイル削除 UI
+- ✅ 知覚ハッシュ (自前 dHash) で類似画像
 - ◻ バックグラウンドジョブ化 (今は同期)
-- ◻ 知覚ハッシュ (image_hasher) で類似画像
 
 ### ディスク使用量
 - ✅ 再帰サイズ集計
@@ -69,13 +72,14 @@
 
 ## Phase 3 — AI (Pro)
 
-- ◻ Claude Vision で画像タグ付け
+- ✅ Claude Vision で画像タグ付け
+- ✅ ユーザ定義カテゴリで分類
+- ✅ 自然言語 → SearchQuery 変換
+- ✅ ドキュメント要約 (テキスト系のみ)
+- ✅ OCR (Claude Vision で代用)
 - ◻ ローカル CLIP もオプション (オフライン用)
-- ◻ ユーザ定義カテゴリで分類
-- ◻ 自然言語 → SearchQuery 変換
-- ◻ ドキュメント要約 (PDF/docx/md)
-- ◻ OCR (Tesseract or Apple Vision)
-- ◻ 埋め込み + 類似検索
+- ◻ PDF 要約 (pdfium 入れる)
+- ◻ 埋め込み + 類似検索 (sqlite-vec で)
 
 ---
 

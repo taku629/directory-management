@@ -63,12 +63,46 @@
 - treemap、flexbox 版は計算は楽だけど比率が小さい子が薄くなりすぎる。
   squarified treemap にすると見やすい。後回し
 
-## Phase 3 妄想 (まだ)
+## Phase 3 やってみた
 
-- Claude API で画像タグ付け、ローカルキャッシュ
-- 自然言語 → SearchQuery 変換も Claude にやらせたい (tool-use で)
-- OCR は Tesseract サイドカーかな
-- コスト感: 1 ユーザ 1000 枚 / 月で API 50 円ぐらいに収めたい
+✅ Claude API クライアント (テキスト/Vision/tool-use) を自前で書いた
+- SDK 使わず reqwest で直接 → 依存軽い
+- API キーは SQLite に保存、リクエストは直接 anthropic に飛ぶ
+- ai_tags / ai_summaries / ocr_text にキャッシュ
+
+✅ 画像タグ付け (Vision)
+- tool-use で構造化 JSON 返させてる
+- confidence ≥ 0.6 のものは自動で user tag にも反映 → サイドバーに即出る
+
+✅ 自然言語検索
+- 「先月の犬の写真」みたいなクエリを SearchQuery に変換
+- 実ファイルは送らずクエリだけ送る → 安い
+
+✅ ドキュメント要約
+- 今のとこテキスト系のみ。PDF は pdfium 入れる必要あり、保留
+
+✅ OCR
+- Tesseract サイドカーやめて Vision で済ませた → ビルド軽い
+- 抽出テキストを FTS にも混ぜ込むので普通の検索でも引っかかる
+
+### コスト感
+- 画像 1 枚 ~$0.005 ぐらい (Sonnet 4.6 vision)
+- 1000 枚タグ付けで $5 ≒ 750 円
+- 思ったより高いので、バッチ処理で大量にやらせるならキャッシュ徹底
+
+## やりつつ思ったこと
+
+- 個人で使う分にはほぼ十分
+- 売るなら課金導線がまだ弱い (Pro tier ゲートは入ってるけど活性化しない)
+- アイコンと UI の magnetism が足りない
+- 名前 "sift" は地味すぎる気もしてる
+
+## Phase 4 (まだ)
+- 自動アップデータ (tauri-plugin-updater)
+- Mac 公証 / Windows 署名
+- ライセンス検証サーバ (Lemon Squeezy 連携)
+- クラウド同期 (S3/Dropbox)
+- Squarified treemap (slice-and-dice はちょっと見にくい)
 
 ## アイデア / 妄想
 
