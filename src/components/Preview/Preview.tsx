@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { convertFileSrc } from "@tauri-apps/api/core";
 import { useAppStore } from "../../lib/store";
 import {
   createTag,
@@ -9,10 +10,24 @@ import {
   untagFile,
   updateFileMetadata,
 } from "../../lib/tauri";
-import type { Tag } from "../../lib/types";
+import type { FileEntry, Tag } from "../../lib/types";
 import { formatSize, iconFor } from "../../lib/format";
 
 const COLORS = ["#ff6b6b", "#f5a623", "#4ade80", "#5b9dff", "#b388ff"];
+
+const IMAGE_EXTS = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "tiff", "heic", "svg"];
+const VIDEO_EXTS = ["mp4", "mov", "webm", "m4v"];
+const AUDIO_EXTS = ["mp3", "wav", "flac", "m4a", "aac", "ogg"];
+
+function previewKind(f: FileEntry): "image" | "video" | "audio" | "text" | "none" {
+  const ext = f.extension ?? "";
+  if (IMAGE_EXTS.includes(ext)) return "image";
+  if (VIDEO_EXTS.includes(ext)) return "video";
+  if (AUDIO_EXTS.includes(ext)) return "audio";
+  if (["txt", "md", "log", "json", "yaml", "yml", "toml", "csv"].includes(ext))
+    return "text";
+  return "none";
+}
 
 export function Preview() {
   const selected = useAppStore((s) => s.selected);
@@ -75,11 +90,41 @@ export function Preview() {
     await updateFileMetadata(selected.id, patch);
   }
 
+  const kind = previewKind(selected);
+  const src = !selected.is_directory ? convertFileSrc(selected.path) : null;
+
   return (
     <div>
       <div style={{ textAlign: "center", marginBottom: 12 }}>
-        <div style={{ fontSize: 64 }}>{iconFor(selected)}</div>
-        <div style={{ fontWeight: 600, wordBreak: "break-all" }}>
+        {kind === "image" && src ? (
+          <img
+            src={src}
+            alt={selected.name}
+            style={{
+              maxWidth: "100%",
+              maxHeight: 220,
+              objectFit: "contain",
+              borderRadius: 6,
+              background: "var(--bg-3)",
+            }}
+          />
+        ) : kind === "video" && src ? (
+          <video
+            src={src}
+            controls
+            style={{
+              maxWidth: "100%",
+              maxHeight: 220,
+              borderRadius: 6,
+              background: "#000",
+            }}
+          />
+        ) : kind === "audio" && src ? (
+          <audio src={src} controls style={{ width: "100%" }} />
+        ) : (
+          <div style={{ fontSize: 64 }}>{iconFor(selected)}</div>
+        )}
+        <div style={{ fontWeight: 600, wordBreak: "break-all", marginTop: 8 }}>
           {selected.name}
         </div>
         <div style={{ color: "var(--fg-dim)", fontSize: 11 }}>
