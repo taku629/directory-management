@@ -43,5 +43,15 @@
     "shortDescription": "Organize, search and tag your local files",
     "longDescription": "Sift is a desktop app to organize, search and tag your local files. It auto-organizes downloads, finds duplicates, visualizes disk usage, and uses AI to tag and classify files."
   },
-  "plugins": {}
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/taku629/directory-management/releases/latest/download/latest.json"
+      ],
+      "pubkey": "REPLACE_WITH_YOUR_TAURI_UPDATER_PUBLIC_KEY",
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
 }

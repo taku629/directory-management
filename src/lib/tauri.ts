@@ -149,3 +149,4 @@ export const getLicense = () => invoke<LicenseInfo>("get_license");
 export const activateLicense = (licenseKey: string) =>
   invoke<LicenseInfo>("activate_license", { licenseKey });
 export const deactivateLicense = () => invoke<void>("deactivate_license");
+export const getEntitlement = () => invoke<import("./types").Entitlement>("get_entitlement");

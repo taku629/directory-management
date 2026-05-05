@@ -11,7 +11,8 @@ type View =
   | { kind: "disk-usage" }
   | { kind: "rules" }
   | { kind: "ai" }
-  | { kind: "settings" };
+  | { kind: "settings" }
+  | { kind: "pricing" };
 
 export type PresetId =
   | "biggest"

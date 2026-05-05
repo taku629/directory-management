@@ -1,4 +1,4 @@
-//! License management commands — Phase 4.
+//! License management commands.
 
 use rusqlite::params;
 use serde::Serialize;
@@ -6,7 +6,9 @@ use tauri::State;
 
 use crate::db::now_ts;
 use crate::error::{AppError, AppResult};
-use crate::license::{current_tier, Tier};
+use crate::license::{
+    entitlement as compute_entitlement, machine_id, verify::verify_license, Entitlement,
+};
 use crate::state::AppState;
 
 #[derive(Debug, Serialize)]
@@ -14,25 +16,29 @@ pub struct LicenseInfo {
     pub tier: String,
     pub activated_at: Option<i64>,
     pub expires_at: Option<i64>,
-    pub machine_id: Option<String>,
+    pub machine_id: String,
+    pub entitlement: Entitlement,
 }
 
 #[tauri::command]
 pub fn get_license(state: State<'_, AppState>) -> AppResult<LicenseInfo> {
     let conn = state.db.get()?;
-    let row = conn.query_row(
-        "SELECT tier, activated_at, expires_at, machine_id FROM license WHERE id = 1",
-        [],
-        |r| {
-            Ok(LicenseInfo {
-                tier: r.get(0)?,
-                activated_at: r.get(1)?,
-                expires_at: r.get(2)?,
-                machine_id: r.get(3)?,
-            })
-        },
-    )?;
-    Ok(row)
+    let (tier, activated, expires): (String, Option<i64>, Option<i64>) = conn
+        .query_row(
+            "SELECT tier, activated_at, expires_at FROM license WHERE id = 1",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .unwrap_or_else(|_| ("free".to_string(), None, None));
+    let mid = machine_id(&state)?;
+    let ent = compute_entitlement(&state)?;
+    Ok(LicenseInfo {
+        tier,
+        activated_at: activated,
+        expires_at: expires,
+        machine_id: mid,
+        entitlement: ent,
+    })
 }
 
 #[tauri::command]
@@ -43,25 +49,40 @@ pub fn activate_license(
     if license_key.trim().is_empty() {
         return Err(AppError::Invalid("empty license key".into()));
     }
-    // Phase 4: POST to licensing service, validate signed JWT, persist tier.
-    // For Phase 1 plumbing, accept any key prefixed `SIFT-PRO-` so the gating
-    // pathway can be exercised end-to-end during development.
-    let tier = if license_key.starts_with("SIFT-PRO-") {
-        Tier::Pro
-    } else if license_key.starts_with("SIFT-TEAM-") {
-        Tier::Team
+
+    // Dev shortcut: SIFT-PRO-* / SIFT-TEAM-* with no signature still work
+    // so we can exercise the gating end-to-end without running the licensing
+    // service. Production keys are signed and routed through `verify_license`.
+    let key = license_key.trim();
+    let (tier, expires_at) = if key.contains('.') {
+        let payload = verify_license(key)?;
+        let our_machine = machine_id(&state)?;
+        if payload.machine_id != our_machine {
+            return Err(AppError::Invalid(
+                "ライセンスがこのマシン用じゃない".into(),
+            ));
+        }
+        if let Some(exp) = payload.expires_at {
+            if exp < now_ts() {
+                return Err(AppError::Invalid("ライセンス期限切れ".into()));
+            }
+        }
+        (payload.tier, payload.expires_at)
+    } else if key.starts_with("SIFT-PRO-") {
+        ("pro".to_string(), None)
+    } else if key.starts_with("SIFT-TEAM-") {
+        ("team".to_string(), None)
     } else {
         return Err(AppError::Invalid(
-            "license verification not yet implemented; use SIFT-PRO-xxxx for testing".into(),
+            "ライセンスキーが不正。SIFT-PRO- か署名済みトークンを入れて。".into(),
         ));
     };
 
     let conn = state.db.get()?;
     conn.execute(
-        "UPDATE license SET license_key = ?1, tier = ?2, activated_at = ?3 WHERE id = 1",
-        params![license_key, tier.as_str(), now_ts()],
+        "UPDATE license SET license_key = ?1, tier = ?2, activated_at = ?3, expires_at = ?4 WHERE id = 1",
+        params![key, tier, now_ts(), expires_at],
     )?;
-    let _ = current_tier(&state)?;
     get_license(state)
 }
 
@@ -74,4 +95,11 @@ pub fn deactivate_license(state: State<'_, AppState>) -> AppResult<()> {
         [],
     )?;
     Ok(())
+}
+
+/// Returns the user's current entitlement — used by the UI to show
+/// "Trial: 7 days left" badges and gate Pro features pre-emptively.
+#[tauri::command]
+pub fn get_entitlement(state: State<'_, AppState>) -> AppResult<Entitlement> {
+    compute_entitlement(&state)
 }

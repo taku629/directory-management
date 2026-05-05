@@ -10,6 +10,8 @@ import { DiskUsage } from "./components/DiskUsage/DiskUsage";
 import { AIPanel } from "./components/AIPanel/AIPanel";
 import { Settings } from "./components/Settings/Settings";
 import { Onboarding } from "./components/Onboarding/Onboarding";
+import { Pricing } from "./components/Pricing/Pricing";
+import { TrialBadge } from "./components/TrialBadge";
 import { useAppStore } from "./lib/store";
 import { getSetting, listTags, listWatchedRoots, setSetting } from "./lib/tauri";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -51,6 +53,7 @@ export default function App() {
         <button onClick={chooseFolder}>{t("topbar.openFolder")}</button>
         <SearchBar onStatus={setStatus} />
         <span className="spacer" />
+        <TrialBadge onUpgrade={() => setView({ kind: "pricing" })} />
         <button onClick={() => setView({ kind: "settings" })}>⚙</button>
       </header>
 
@@ -76,6 +79,7 @@ export default function App() {
         {view.kind === "rules" && <RuleEditor />}
         {view.kind === "ai" && <AIPanel />}
         {view.kind === "settings" && <Settings />}
+        {view.kind === "pricing" && <Pricing />}
       </main>
 
       <aside className="inspector">

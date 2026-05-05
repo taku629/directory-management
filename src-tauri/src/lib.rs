@@ -27,6 +27,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let state = AppState::init(app.handle())?;
             app.manage(state);
@@ -94,6 +96,7 @@ pub fn run() {
             commands::license::get_license,
             commands::license::activate_license,
             commands::license::deactivate_license,
+            commands::license::get_entitlement,
             // ---- Phase 4: cloud ----
             commands::cloud::list_cloud_providers,
             commands::cloud::configure_cloud,

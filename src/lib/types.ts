@@ -113,11 +113,19 @@ export interface WatcherStatus {
   roots: string[];
 }
 
+export interface Entitlement {
+  effective_tier: "Free" | "Pro" | "Team" | "free" | "pro" | "team";
+  source: "Free" | "Trial" | "License";
+  trial_days_left: number | null;
+  license_expires_at: number | null;
+}
+
 export interface LicenseInfo {
   tier: "free" | "pro" | "team";
   activated_at: number | null;
   expires_at: number | null;
-  machine_id: string | null;
+  machine_id: string;
+  entitlement: Entitlement;
 }
 
 export interface Rule {
