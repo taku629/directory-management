@@ -10,6 +10,8 @@ import {
 import type { LicenseInfo, WatchedRoot } from "../../lib/types";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getLocale, setLocale, useT, type Locale } from "../../lib/i18n";
+import { Updater } from "./Updater";
+import { Telemetry } from "./Telemetry";
 
 export function Settings() {
   const t = useT();
@@ -127,8 +129,12 @@ export function Settings() {
         )}
       </section>
 
+      <Updater />
+
+      <Telemetry />
+
       <section>
-        <h3>About</h3>
+        <h3>{t("settings.about")}</h3>
         <p style={{ color: "var(--fg-dim)", fontSize: 13 }}>
           Sift v0.1.0 · See <code>docs/roadmap.md</code> for the full feature
           map.

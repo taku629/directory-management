@@ -14,6 +14,7 @@ mod license;
 mod rules;
 mod search;
 mod state;
+mod telemetry;
 
 use state::AppState;
 use tauri::Manager;
