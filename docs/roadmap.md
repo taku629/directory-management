@@ -85,14 +85,29 @@
 
 ## Phase 4 — 配布と課金
 
-- ◻ ライセンス検証サーバ (Lemon Squeezy か自前)
-- ◻ JWT 検証
-- ◻ S3 / B2 / Dropbox / Google Drive 同期
+### コード側 (大体終わった)
+- ✅ Ed25519 ライセンス検証 (license/verify.rs)
+- ✅ 14 日トライアル + machine ID
+- ✅ アプリ内 Pricing 画面 + Pro ゲート + TrialBadge
+- ✅ ライセンスサーバ参考実装 (licenser/)
+- ✅ 自動アップデート (tauri-plugin-updater)
+- ✅ リリース CI (mac/win/linux 署名 scaffolding 込み)
+- ✅ opt-in テレメトリ
+- ✅ 多言語化 (EN/JA)
+- ✅ マーケサイト (静的 HTML)
+- ✅ 法務テンプレ (privacy / terms)
+
+### 外部作業 (まだ)
+- ◻ Apple Developer Program 加入 ($99/年)
+- ◻ Windows コードサイン契約
+- ◻ Lemon Squeezy 商品設定
+- ◻ ドメイン + Cloudflare Pages デプロイ
+- ◻ アイコン・ロゴ・スクショ・GIF
+- ◻ Privacy/Terms 弁護士レビュー
+
+### 残コード
+- ◻ S3 / B2 / Dropbox / Google Drive 同期実装
 - ◻ ワークスペース (Team プラン)
-- ◻ 自動アップデート
-- ◻ Mac 公証 + Windows 署名
-- ◻ ランディング + Stripe
-- ◻ 多言語化 (EN/JA)
 
 ---
 

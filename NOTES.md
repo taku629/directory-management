@@ -97,12 +97,54 @@
 - アイコンと UI の magnetism が足りない
 - 名前 "sift" は地味すぎる気もしてる
 
-## Phase 4 (まだ)
-- 自動アップデータ (tauri-plugin-updater)
-- Mac 公証 / Windows 署名
-- ライセンス検証サーバ (Lemon Squeezy 連携)
-- クラウド同期 (S3/Dropbox)
-- Squarified treemap (slice-and-dice はちょっと見にくい)
+## Phase 4 着手 (商品化準備)
+
+✅ **License system 本気版**
+- Ed25519 署名 + 公開鍵バンドル (ビルド時 env)
+- 14 日トライアル (machine_id ベース)
+- machine-uid で機械固有 ID
+- アプリ内 Pricing 画面 + LockedPanel リニューアル
+- TrialBadge をトップバーに常駐
+
+✅ **自動アップデート**
+- tauri-plugin-updater 統合
+- 設定画面に「今すぐ確認」/「起動時自動」
+- GitHub Releases を更新元に
+
+✅ **opt-in テレメトリ**
+- デフォルトオフ
+- カウンタだけ送る、ファイル名・パスは絶対送らない契約をコードに埋め込んだ
+
+✅ **CI リリースパイプライン**
+- mac (arm64 / x64) / linux / windows でタグ push → ビルド → 署名 → Release
+- Apple 公証 / Windows コードサイン scaffolding (Secrets 入れれば動く)
+- latest.json 自動生成スクリプト
+
+✅ **マーケサイト**
+- landing/index.html — フレームワーク不使用、CSS インライン
+- privacy.html / terms.html (テンプレ、要弁護士チェック)
+
+✅ **ライセンスサーバ参考実装** (licenser/)
+- axum + Ed25519、JSON ファイル DB
+- 本番は Lemon Squeezy のライセンス機能を使う想定
+
+✅ **ドキュメント**
+- distribution.md (鍵作成 / Apple 公証 / Win 署名 / ロールバック)
+- commerce.md (課金フロー / LS vs Stripe / 価格根拠)
+- launch.md (T-30 → 当日 → +7 のチェックリスト)
+
+### まだやってない (要外部作業)
+- ◻ Apple Developer Program 加入 ($99/年)
+- ◻ Windows コードサイン契約
+- ◻ Lemon Squeezy アカウント開設
+- ◻ ドメイン取得 + Cloudflare Pages デプロイ
+- ◻ 弁護士に privacy/terms レビュー
+- ◻ アイコン・ロゴ・スクショ
+- ◻ クラウド同期実装
+- ◻ Squarified treemap
+
+商品化のコード側はだいたい揃った。あとは外部サービスとの契約と、アイコン作って
+Lemon Squeezy で商品設定して LP デプロイすれば売り出せる状態。
 
 ## アイデア / 妄想
 

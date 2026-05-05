@@ -74,6 +74,28 @@ docs/                 設計メモ
 NOTES.md              開発メモ
 ```
 
+## 商品化まわり
+
+このリポジトリは「ちまちま開発」と「商品化準備」の両方を含んでる。
+
+| | どこ |
+|--|--|
+| マーケサイト (静的 HTML) | [`landing/`](landing/) |
+| 課金フロー設計 | [`docs/commerce.md`](docs/commerce.md) |
+| ローンチ runbook | [`docs/launch.md`](docs/launch.md) |
+| 配布手順 (公証 / 署名 / 鍵) | [`docs/distribution.md`](docs/distribution.md) |
+| ライセンスサーバ参考実装 | [`licenser/`](licenser/) |
+| リリース CI | [`.github/workflows/release.yml`](.github/workflows/release.yml) |
+| 法務テンプレ (要弁護士レビュー) | [`landing/privacy.html`](landing/privacy.html), [`landing/terms.html`](landing/terms.html) |
+
+3 行まとめ:
+
+1. **Lemon Squeezy で買ってもらう** → メールでライセンスキー届く
+2. **アプリの設定画面でキー貼る** → Ed25519 署名検証 → Pro 機能解放
+3. **タグ push で CI が回る** → 各 OS 向けに署名済みインストーラ + 自動アップデート manifest 生成 → GitHub Releases に公開
+
+詳細は [`docs/commerce.md`](docs/commerce.md) と [`docs/launch.md`](docs/launch.md)。
+
 ## ライセンス
 
 個人プロジェクトなのでまだ決めてない。とりあえず無断利用禁止で
