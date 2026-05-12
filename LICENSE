@@ -1,10 +1,24 @@
-Copyright (c) 2026 taku629
+Sift — Proprietary License
+Copyright (c) 2026 taku629. All rights reserved.
 
-個人プロジェクト。まだライセンス決めてないので、無断での使用・複製・配布・
-改変は控えてください。気が向いたら MIT とか BSD にするかもしれません。
+This software and its source code are made available for evaluation and
+reference only. You may build and run it for personal evaluation.
 
-連絡してくれれば相談に乗れます。
+Without a valid commercial license you may NOT:
+  - redistribute the software or its source, in original or modified form;
+  - use it (or derivative works) in a commercial setting;
+  - remove or circumvent the licensing / activation mechanism.
+
+A paid license (see the in-app Pricing screen) grants you the right to use
+the corresponding feature tier under the terms published at purchase time.
+
+Third-party components retain their own licenses (see Cargo.lock /
+package-lock.json and the respective upstream projects).
+
+For other licensing arrangements, contact the copyright holder.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OF THE SOFTWARE.

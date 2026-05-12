@@ -14,6 +14,13 @@ interface Tier {
   highlight?: boolean;
 }
 
+// Lemon Squeezy checkout URLs. Set these at build time:
+//   VITE_BUY_URL  = https://<store>.lemonsqueezy.com/buy/<pro-product-uuid>
+//   VITE_TEAM_URL = https://<store>.lemonsqueezy.com/buy/<team-product-uuid>
+// Until those products exist, both fall back to the store front page.
+const BUY_URL = import.meta.env.VITE_BUY_URL ?? "https://taku629.lemonsqueezy.com";
+const TEAM_URL = import.meta.env.VITE_TEAM_URL ?? "https://taku629.lemonsqueezy.com";
+
 const TIERS: Tier[] = [
   {
     id: "free",
@@ -36,7 +43,7 @@ const TIERS: Tier[] = [
     per: "買い切り (or ¥500/月)",
     cta: "Pro を買う",
     highlight: true,
-    buyUrl: "https://sift.example.com/buy",
+    buyUrl: BUY_URL,
     features: [
       "Free のすべて",
       "ルール自動整理 + ファイル監視",
@@ -53,7 +60,7 @@ const TIERS: Tier[] = [
     price: "¥1,200",
     per: "/ ユーザ / 月",
     cta: "問い合わせ",
-    buyUrl: "https://sift.example.com/team",
+    buyUrl: TEAM_URL,
     features: [
       "Pro のすべて",
       "ワークスペース (複数ライブラリ)",
