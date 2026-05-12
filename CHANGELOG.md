@@ -5,12 +5,22 @@ This project follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added since 0.1.0 snapshot
+- App icon / logo mark (a stylised sieve) — `src-tauri/icons/icon.svg` is the
+  source; the raster set was regenerated with `tauri icon`. Still a clean
+  placeholder, not final art.
+- `licenser/` now has a working `POST /webhook/lemonsqueezy` (HMAC-SHA256
+  verification, issues a token on purchase, revokes on refund/cancel), `POST
+  /revoke`, device-activation tracking with a per-license limit, and optional
+  Resend email delivery.
+- Pricing checkout URLs are configurable via `VITE_BUY_URL` / `VITE_TEAM_URL`.
+
 ### Pending before first public release
-- Generate Tauri updater signing keypair and license Ed25519 keypair; wire
-  public keys into `tauri.conf.json` / build env (see `docs/distribution.md`).
-- Create Lemon Squeezy store + Pro/Team products; set `VITE_BUY_URL` /
-  `VITE_TEAM_URL` at build time.
-- Replace placeholder app icon, add screenshots and landing assets.
+- Generate the Tauri updater signing keypair and the license Ed25519 keypair;
+  wire public keys into `tauri.conf.json` / build env (see `docs/distribution.md`).
+- Create the Lemon Squeezy store + Pro/Team products; set `VITE_BUY_URL` /
+  `VITE_TEAM_URL` at build time and the webhook secret for `licenser/`.
+- Final icon/logo art, app screenshots, `landing/og.png`.
 - Apple notarization + Windows code-signing certificates.
 - Legal review of `landing/privacy.html` and `landing/terms.html`.
 

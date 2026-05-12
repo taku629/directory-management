@@ -1,127 +1,123 @@
-# licenser — 参考実装のライセンス発行サーバ
+# licenser — reference license server for Sift
 
-> ⚠️ これはリファレンス実装です。本番運用するなら認証・レート制限・監査ログ・
-> バックアップを足してください。Lemon Squeezy / Paddle のライセンス機能を使えば
-> 自前運用しなくて済みます (推奨)。
+> ⚠️ Reference implementation. For production, add auth, rate limiting, an audit
+> log, backups, and a real database. If you'd rather not run anything, Lemon
+> Squeezy's built-in license-key feature covers most of this — see "Lemon
+> Squeezy" below.
 
-## 何をするか
+## What it does
 
-1. 決済プロバイダ (Lemon Squeezy / Stripe) からの購入 webhook を受ける
-2. Ed25519 で署名したライセンストークンを生成してメール送付
-3. アプリからの再検証 (`/verify`) リクエストに応答
-4. 失効・払い戻しを管理
+1. Receives Lemon Squeezy purchase webhooks (`POST /webhook/lemonsqueezy`),
+   verifies the HMAC-SHA256 signature, and on `order_created` /
+   `subscription_created` issues an Ed25519-signed license token.
+2. Emails the token to the buyer (via Resend if configured, otherwise logs it).
+3. Answers re-verification requests from the app (`POST /verify`), tracking
+   device activations and enforcing a per-license device limit.
+4. Revokes licenses on refund/cancel webhooks, or manually via `POST /revoke`.
 
-## ライセンストークンのフォーマット
+The Ed25519 public key that matches this server's private key must be bundled
+into the app at build time as the `SIFT_PUBLIC_KEY_PEM` secret (see
+`../docs/distribution.md`); the app verifies tokens fully offline and only calls
+`/verify` for revocation checks.
+
+## Token format
 
 ```
-SIFT-PRO-9F2K7Q4R.<base64url(payload_json)>.<base64url(signature)>
+SIFT-PRO-9F2K7Q4R.<base64url(payload_json)>.<base64url(ed25519_signature)>
 ```
 
 `payload_json`:
 
 ```json
-{
-  "tier": "pro",
-  "machine_id": "ABCD...",
-  "email": "user@example.com",
-  "issued_at": 1735689600,
-  "expires_at": null
-}
+{ "tier": "pro", "machine_id": "", "email": "user@example.com", "issued_at": 1735689600, "expires_at": null }
 ```
 
-クライアントは `tauri::license::verify` で `expires_at` チェック + 機械 ID 一致を検証。
+One-off purchases get `expires_at: null` (perpetual for that major version);
+subscriptions get a ~32-day expiry that the next renewal webhook refreshes.
 
-## 最小実装 (Rust + axum)
+## Run it
 
-```rust
-// licenser/src/main.rs (擬似コード)
-use axum::{Json, Router, routing::post};
-use ed25519_dalek::{SigningKey, Signer};
+```bash
+# generate the keypair once (see ../docs/distribution.md)
+openssl genpkey -algorithm ED25519 -out license-priv.pem
+openssl pkey -in license-priv.pem -pubout -out license-pub.pem   # -> SIFT_PUBLIC_KEY_PEM
 
-async fn issue(Json(req): Json<IssueRequest>) -> Json<IssueResponse> {
-    let key = SigningKey::from_bytes(&load_private_key());
-    let payload = serde_json::json!({
-        "tier": req.tier,
-        "machine_id": req.machine_id,
-        "email": req.email,
-        "issued_at": now_unix(),
-        "expires_at": req.expires_at,
-    });
-    let payload_bytes = serde_json::to_vec(&payload).unwrap();
-    let sig = key.sign(&payload_bytes);
-    let token = format!(
-        "SIFT-{}-{}.{}.{}",
-        req.tier.to_uppercase(),
-        random_id(8),
-        b64url(&payload_bytes),
-        b64url(&sig.to_bytes()),
-    );
-    save_to_db(&req.email, &token);
-    send_email(&req.email, &token);
-    Json(IssueResponse { token })
-}
-
-#[tokio::main]
-async fn main() {
-    let app = Router::new()
-        .route("/webhook/lemonsqueezy", post(handle_purchase))
-        .route("/issue", post(issue))
-        .route("/verify", post(verify))
-        .route("/revoke", post(revoke));
-    axum::Server::bind(&"0.0.0.0:8080".parse().unwrap())
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
-}
+SIFT_PRIVATE_KEY_PEM="$(cat license-priv.pem)" \
+LS_WEBHOOK_SECRET="whsec_..." \
+RESEND_API_KEY="re_..." \
+LICENSE_FROM_EMAIL="Sift <licenses@yourdomain.com>" \
+cargo run -p licenser
 ```
 
-## DB スキーマ
+| Env var | Required | Default | Notes |
+|---|---|---|---|
+| `SIFT_PRIVATE_KEY_PEM` | yes | — | Ed25519 private key, PKCS#8 PEM |
+| `LS_WEBHOOK_SECRET` | for webhooks | — | Lemon Squeezy "Signing secret"; without it the webhook rejects everything |
+| `RESEND_API_KEY` | no | — | if unset, license keys are printed to stdout instead of emailed |
+| `LICENSE_FROM_EMAIL` | no | `Sift <licenses@sift.app>` | From: header |
+| `DEVICE_LIMIT` | no | `3` | max activated machines per license |
+| `BIND_ADDR` | no | `0.0.0.0:8080` | listen address |
+
+State is persisted to `licenses.json` in the working directory.
+
+## Endpoints
+
+| Method | Path | Body | Response |
+|---|---|---|---|
+| POST | `/issue` | `{ "tier", "email", "machine_id"?, "expires_at"? }` | `{ "token" }` |
+| POST | `/verify` | `{ "token", "machine_id"? }` | `{ "valid", "reason"? }` — `reason` ∈ `unknown` `revoked` `expired` `device_limit` |
+| POST | `/revoke` | `{ "id" }` | `{ "ok" }` |
+| POST | `/webhook/lemonsqueezy` | Lemon Squeezy event payload | `200` (or `401` on bad signature) |
+
+## DB schema (when you outgrow the JSON file)
 
 ```sql
 CREATE TABLE licenses (
-  id            TEXT PRIMARY KEY,            -- SIFT-PRO-9F2K7Q4R
+  id            TEXT PRIMARY KEY,   -- SIFT-PRO-9F2K7Q4R
   tier          TEXT NOT NULL,
   email         TEXT NOT NULL,
-  payment_id    TEXT NOT NULL,                -- LS / Stripe order id
+  payment_id    TEXT,               -- Lemon Squeezy order/subscription id
   issued_at     INTEGER NOT NULL,
   expires_at    INTEGER,
   revoked       INTEGER NOT NULL DEFAULT 0,
-  machine_ids   TEXT,                          -- JSON array of activated machines
-  created_at    INTEGER NOT NULL
+  machine_ids   TEXT NOT NULL DEFAULT '[]'  -- JSON array of activated machines
 );
-CREATE INDEX idx_licenses_email ON licenses(email);
+CREATE INDEX idx_licenses_email      ON licenses(email);
+CREATE INDEX idx_licenses_payment_id ON licenses(payment_id);
 ```
 
-`machine_ids` を見て同時アクティベート数を制限 (例: Pro は 3 デバイスまで)。
+## Lemon Squeezy
 
-## デプロイ案
+1. Create the Pro / Team products; under **Settings → Webhooks** add a webhook
+   pointing at `https://your-host/webhook/lemonsqueezy`, subscribed to
+   `order_created`, `order_refunded`, `subscription_created`,
+   `subscription_cancelled`, `subscription_expired`. Copy the signing secret
+   into `LS_WEBHOOK_SECRET`.
+2. Deploy this server somewhere with a stable URL (Fly.io / a small VM /
+   Cloudflare Workers if you port it). It needs outbound HTTPS for Resend.
+3. Test with a real purchase in test mode → confirm the email arrives → paste
+   the key into Sift → Settings.
 
-| 候補 | コスト | メモ |
-|------|-------|------|
-| **Lemon Squeezy ライセンス機能** | 売上 5% | コード不要、決済+ライセンス両方やってくれる。**最初これでいい** |
-| Fly.io + Postgres | 月 $0〜 | 自前運用、無料枠で足りる |
-| Cloudflare Workers + D1 | 月 $0 | エッジで動くので速い、設計しやすい |
-| Vercel + Neon | 月 $0 | Next.js API Route で書ける |
+Alternatively, skip this server entirely: enable Lemon Squeezy's own license
+keys, and have a tiny webhook (one Vercel/Workers route) fetch the LS-generated
+key and re-sign it in the `SIFT-...` format so the app's offline verification
+stays the same even if you later move off Lemon Squeezy.
 
-個人開発なら **Lemon Squeezy のライセンス機能から始めるのが圧倒的に楽**。
-売上規模が出てきて手数料が辛くなったら自前に移行する流れ。
+## Deploy options
 
-## Lemon Squeezy 連携の最小手順
+| Option | Cost | Notes |
+|---|---|---|
+| Lemon Squeezy license keys (+ a tiny re-signing webhook) | 5% of revenue | least to run; start here |
+| Fly.io + a volume for `licenses.json` (or Postgres) | $0–few $/mo | this server as-is |
+| Cloudflare Workers + D1 | ~$0 | needs a port off axum/tokio |
+| Vercel + Neon | ~$0 | rewrite as a Next.js route |
 
-1. [LS で商品作成](https://lemonsqueezy.com) → "License keys" を有効化
-2. 購入完了 webhook を受ける (Vercel API Route 1 個でいい)
-3. webhook で LS API を叩いて生成された license key を取得
-4. それを **Sift 用に Ed25519 で再署名** して `SIFT-PRO-...` フォーマットでメール送信
+## Checklist
 
-LS が生成するキーは LS でしか検証できないので、自分で再署名フォーマットを
-被せると後で LS 以外に乗り換えても手元の検証ロジックは変わらない。
-
-## やることリスト
-
-- [ ] 鍵を本番用に生成 (`openssl genpkey -algorithm ED25519`)
-- [ ] 公開鍵を `tauri-action` の Secret に登録 (`SIFT_PUBLIC_KEY_PEM`)
-- [ ] 秘密鍵をライセンスサーバに環境変数で渡す
-- [ ] LS or Stripe アカウント作る
-- [ ] webhook 受信エンドポイント作る
-- [ ] メール送信 (Resend / Postmark) 連携
-- [ ] 失効処理 (`/revoke`) と払い戻し連動
+- [ ] Generate the production Ed25519 keypair (`openssl genpkey -algorithm ED25519`)
+- [ ] Register the public key as the `SIFT_PUBLIC_KEY_PEM` build secret
+- [ ] Give the private key to this server via `SIFT_PRIVATE_KEY_PEM`
+- [ ] Create a Lemon Squeezy account + products + webhook; set `LS_WEBHOOK_SECRET`
+- [ ] Set up Resend (or another provider) and a verified sending domain
+- [ ] Deploy with a stable HTTPS URL and persistent storage for `licenses.json`
+- [ ] Test-purchase → email → activate end to end

@@ -1,0 +1,17 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sift">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6aa8ff"/>
+      <stop offset="1" stop-color="#3f7fe0"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#0f1115"/>
+  <!-- funnel / sieve -->
+  <path d="M14 17h36a2 2 0 0 1 1.6 3.2L38 38v9a2 2 0 0 1-2.9 1.8l-6-3A2 2 0 0 1 28 45v-7L12.4 20.2A2 2 0 0 1 14 17z"
+        fill="none" stroke="url(#g)" stroke-width="4" stroke-linejoin="round"/>
+  <!-- items being sorted through -->
+  <circle cx="32" cy="13" r="3" fill="#6aa8ff"/>
+  <circle cx="23" cy="9"  r="2.4" fill="#6aa8ff" opacity="0.7"/>
+  <circle cx="41" cy="9"  r="2.4" fill="#6aa8ff" opacity="0.7"/>
+  <circle cx="33" cy="56" r="2.6" fill="#4ade80"/>
+</svg>

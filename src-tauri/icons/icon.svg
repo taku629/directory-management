@@ -1,0 +1,17 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sift">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6aa8ff"/>
+      <stop offset="1" stop-color="#3f7fe0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#0f1115"/>
+  <!-- funnel / sieve -->
+  <path d="M112 136h288a16 16 0 0 1 12.8 25.6L304 304v72a16 16 0 0 1-23.2 14.3l-48-24A16 16 0 0 1 224 360v-56L99.2 161.6A16 16 0 0 1 112 136z"
+        fill="none" stroke="url(#g)" stroke-width="32" stroke-linejoin="round"/>
+  <!-- items being sorted through -->
+  <circle cx="256" cy="104" r="24" fill="#6aa8ff"/>
+  <circle cx="184" cy="72"  r="19" fill="#6aa8ff" opacity="0.7"/>
+  <circle cx="328" cy="72"  r="19" fill="#6aa8ff" opacity="0.7"/>
+  <circle cx="264" cy="448" r="21" fill="#4ade80"/>
+</svg>
