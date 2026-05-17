@@ -1,0 +1,117 @@
+# ============================================================
+# create_issue_from_claude.yml
+# Claude にプロンプトを渡し、生成された title/body で Issue を起票
+#
+# Secrets:
+#   - ANTHROPIC_API_KEY  : Anthropic API キー (必須)
+#   - ISSUE_CREATE_TOKEN : 他リポジトリに作る場合のみ (repo スコープ PAT)
+# ============================================================
+
+name: Create Issue from Claude
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: 'Claudeに渡すプロンプト (どんなIssueを作りたいか)'
+        required: true
+        type: string
+      target_repo:
+        description: 'Issueを作成するリポジトリ (owner/repo)。空ならこのリポジトリ。'
+        required: false
+        default: ''
+        type: string
+
+  # ▼ 有効化する前に注意 ▼
+  # schedule を入れると毎回 Claude API が呼ばれて課金されます。
+  # push を入れると push のたびに呼ばれるのでコスト事故に注意。
+  # schedule:
+  #   - cron: '0 0 * * *'   # 毎日 09:00 JST
+  # push:
+  #   branches: [main]
+
+# 最小権限: Issue作成だけ
+permissions:
+  contents: read
+  issues: write
+
+# 同時実行を1本に絞る (連打防止)
+concurrency:
+  group: create-issue-from-claude
+  cancel-in-progress: false
+
+jobs:
+  create_issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate issue content with Claude
+        id: claude
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          USER_PROMPT: ${{ inputs.prompt }}
+        run: |
+          set -euo pipefail
+
+          # ▼▼▼ ここにClaudeへの追加指示を書き換えてください ▼▼▼
+          SYSTEM_PROMPT=$(cat <<'EOF'
+          あなたは GitHub Issue を起票するアシスタントです。
+          ユーザーリクエストから Issue の title と body を生成してください。
+
+          - title は1行・80文字以内・命令形
+          - body は Markdown 可。## 背景 / ## やりたいこと / ## 受け入れ条件 を含める
+          - 不確実な点は ## 未確定事項 として末尾に箇条書き
+
+          必ず以下の JSON だけを返してください。前後の説明・コードフェンス禁止:
+          {"title":"...","body":"..."}
+          EOF
+          )
+          # ▲▲▲ ここまで ▲▲▲
+
+          # USER_PROMPT は env 経由で JSON エスケープ
+          REQ=$(jq -n \
+            --arg system "$SYSTEM_PROMPT" \
+            --arg user "$USER_PROMPT" \
+            '{
+              model: "claude-opus-4-7",
+              max_tokens: 4096,
+              system: $system,
+              messages: [{role: "user", content: $user}]
+            }')
+
+          RESP=$(curl -sS https://api.anthropic.com/v1/messages \
+            -H "x-api-key: $ANTHROPIC_API_KEY" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d "$REQ")
+
+          # text block を抜き出して JSON としてパース
+          CONTENT=$(echo "$RESP" | jq -r '.content[0].text')
+          if ! echo "$CONTENT" | jq empty 2>/dev/null; then
+            echo "::error::Claude returned non-JSON:"
+            echo "$CONTENT"
+            exit 1
+          fi
+
+          TITLE=$(echo "$CONTENT" | jq -r '.title')
+          BODY=$(echo "$CONTENT" | jq -r '.body')
+
+          # multiline outputs
+          {
+            echo "title<<__END__"
+            echo "$TITLE"
+            echo "__END__"
+            echo "body<<__END__"
+            echo "$BODY"
+            echo "__END__"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create issue
+        env:
+          GH_TOKEN: ${{ secrets.ISSUE_CREATE_TOKEN || secrets.GITHUB_TOKEN }}
+          TARGET_REPO: ${{ inputs.target_repo || github.repository }}
+          TITLE: ${{ steps.claude.outputs.title }}
+          BODY: ${{ steps.claude.outputs.body }}
+        run: |
+          set -euo pipefail
+          echo "Creating issue on $TARGET_REPO: $TITLE"
+          gh issue create --repo "$TARGET_REPO" --title "$TITLE" --body "$BODY"
