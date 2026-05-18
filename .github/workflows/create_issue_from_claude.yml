@@ -84,6 +84,14 @@ jobs:
             -H "content-type: application/json" \
             -d "$REQ")
 
+          # API エラー (401/429/529 等) を早期検出
+          if [ "$(echo "$RESP" | jq -r '.type // empty')" = "error" ]; then
+            ERR_TYPE=$(echo "$RESP" | jq -r '.error.type // "unknown"')
+            ERR_MSG=$(echo "$RESP" | jq -r '.error.message // "no message"')
+            echo "::error::Anthropic API returned error ($ERR_TYPE): $ERR_MSG"
+            exit 1
+          fi
+
           # text block を抜き出し、code fence や前後の説明文を剥がして JSON 部分だけ取り出す
           CONTENT=$(echo "$RESP" | python3 - <<'PY'
           import json, re, sys
