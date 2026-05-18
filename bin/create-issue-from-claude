@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# create-issue-from-claude
+#
+# "Create Issue from Claude" workflow を gh CLI 経由でトリガーする。
+# prompt は引数または stdin で受け取る。
+#
+# Examples:
+#   bin/create-issue-from-claude "short prompt"
+#   bin/create-issue-from-claude <<EOF
+#   multi-line prompt
+#   EOF
+#   echo "prompt" | bin/create-issue-from-claude
+#   bin/create-issue-from-claude --target-repo owner/other-repo "prompt"
+
+set -euo pipefail
+
+WORKFLOW_NAME="Create Issue from Claude"
+REF="main"
+TARGET_REPO=""
+
+usage() {
+  cat <<'USAGE' >&2
+Usage:
+  bin/create-issue-from-claude [options] [prompt...]
+
+Prompt は 引数 または stdin で渡せます。
+
+Options:
+  --target-repo <owner/repo>   Issueを作成するリポジトリ (省略時はこのリポジトリ)
+  --ref <branch>               実行するブランチ (デフォルト: main)
+  -h, --help                   このヘルプを表示
+USAGE
+}
+
+# 引数パース
+PROMPT_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --target-repo)
+      [[ $# -ge 2 ]] || { echo "Error: --target-repo に値がありません" >&2; exit 1; }
+      TARGET_REPO="$2"
+      shift 2
+      ;;
+    --ref)
+      [[ $# -ge 2 ]] || { echo "Error: --ref に値がありません" >&2; exit 1; }
+      REF="$2"
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      while [[ $# -gt 0 ]]; do
+        PROMPT_ARGS+=("$1")
+        shift
+      done
+      ;;
+    *)
+      PROMPT_ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+
+# このスクリプトのある repo root に移動 (実行場所に依存しない)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT"
+
+# prompt を引数 or stdin から取得
+if [[ ${#PROMPT_ARGS[@]} -gt 0 ]]; then
+  PROMPT="${PROMPT_ARGS[*]}"
+elif [[ ! -t 0 ]]; then
+  PROMPT="$(cat)"
+else
+  echo "Error: prompt が指定されていません (引数または stdin で渡してください)" >&2
+  usage
+  exit 1
+fi
+
+# 空チェック (空白のみは拒否)
+if [[ -z "${PROMPT//[[:space:]]/}" ]]; then
+  echo "Error: prompt が空です" >&2
+  exit 1
+fi
+
+# gh の存在チェック
+if ! command -v gh >/dev/null 2>&1; then
+  echo "Error: gh CLI がインストールされていません" >&2
+  exit 1
+fi
+
+# 認証チェック
+if ! gh auth status >/dev/null 2>&1; then
+  echo "Error: gh にログインしていません。'gh auth login' を実行してください" >&2
+  exit 1
+fi
+
+# gh workflow run の引数を組み立て
+GH_ARGS=("workflow" "run" "$WORKFLOW_NAME" "--ref" "$REF" "-f" "prompt=$PROMPT")
+if [[ -n "$TARGET_REPO" ]]; then
+  GH_ARGS+=("-f" "target_repo=$TARGET_REPO")
+fi
+
+echo "Triggering '$WORKFLOW_NAME' on $REF..."
+gh "${GH_ARGS[@]}"
+
+echo
+echo "Triggered. 進捗確認:"
+echo "  gh run list --workflow=\"$WORKFLOW_NAME\" --limit 3"
+echo "  gh run watch"
